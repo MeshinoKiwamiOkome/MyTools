@@ -1,16 +1,10 @@
 // ============================================================
-// editor.js
-// textarea + ハイライトレイヤー方式のシンプルな JS エディタ。
+// editor.js  シンプル・快適操作版
 //
-// ハイライトの仕組み:
-//   textarea を透明にして、真後ろの div（highlight-layer）に
-//   色付きの HTML を表示する。スクロールを同期させることで
-//   色がテキストに重なって見える。
-//
-// お節介な自動変換はしない方針:
-//   ・括弧補完は「開き括弧を入力したとき閉じ括弧を追加」のみ
-//   ・自動インデントは Enter 時に前行のインデントを引き継ぐのみ
-//   ・それ以外のキー操作はブラウザのデフォルト動作に任せる
+// ・textarea をそのまま使う（文字は常に見える）
+// ・ハイライトは廃止（操作感を最優先）
+// ・括弧補完・自動インデントのみ実装
+// ・それ以外のキー操作はブラウザに任せる
 // ============================================================
 
 'use strict';
@@ -27,14 +21,12 @@ const state = {
   stdinResolvers:  [],
   searchResults:   [],
   searchIndex:     -1,
-  hlTimer:         null,   // ハイライト遅延タイマー
 };
 
 // ============================================================
 // DOM 要素
 // ============================================================
 const editor      = document.getElementById('editor');
-const hlLayer     = document.getElementById('highlight-layer');
 const lineNumEl   = document.getElementById('line-numbers');
 const outputEl    = document.getElementById('output');
 const runStatus   = document.getElementById('run-status');
@@ -79,8 +71,6 @@ fetchExample();
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
   editor.value = SAMPLE_CODE;
-  syncLayout();
-  scheduleHighlight();
   updateLineNumbers();
   updateStatusPos();
   bindEvents();
@@ -89,166 +79,13 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
-// レイアウト同期
-// textarea と highlight-layer の left 位置を行番号幅に合わせる
-// ============================================================
-function syncLayout() {
-  const lineW = lineNumEl.offsetWidth;
-  editor.style.left  = lineW + 'px';
-  hlLayer.style.left = lineW + 'px';
-}
-
-// ============================================================
-// シンタックスハイライト（トークナイザー方式）
-//
-// コードを先頭から1文字ずつ読み進め、
-// コメント・文字列・数値・キーワードの順に判定する。
-// コメントや文字列の中身は絶対にハイライトしない。
-// ============================================================
-function highlight(code) {
-
-  const KEYWORDS = new Set([
-    'async','await','break','case','catch','class','const','continue',
-    'debugger','default','delete','do','else','export','extends',
-    'finally','for','from','function','if','import','in','instanceof',
-    'let','new','null','of','return','static','super','switch',
-    'this','throw','true','false','try','typeof','undefined',
-    'var','void','while','with','yield',
-  ]);
-
-  const BUILTINS = new Set([
-    'Array','Boolean','console','Date','document','Error','Event',
-    'fetch','JSON','Map','Math','Number','Object','Promise','Proxy',
-    'Reflect','RegExp','Set','String','Symbol','WeakMap','WeakSet',
-    'window','globalThis','setTimeout','setInterval',
-    'clearTimeout','clearInterval','parseInt','parseFloat',
-    'isNaN','isFinite','encodeURI','decodeURI','alert','confirm','prompt',
-  ]);
-
-  // HTML エスケープ（ハイライト HTML を壊さないため）
-  function esc(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-  function span(cls, s) {
-    return '<span class="' + cls + '">' + esc(s) + '</span>';
-  }
-
-  let out = '';
-  let i   = 0;
-
-  while (i < code.length) {
-
-    // 1. 一行コメント //
-    if (code[i] === '/' && code[i+1] === '/') {
-      const end = code.indexOf('\n', i);
-      const tok = end === -1 ? code.slice(i) : code.slice(i, end);
-      out += span('hl-comment', tok);
-      i   += tok.length;
-      continue;
-    }
-
-    // 2. 複数行コメント /* */
-    if (code[i] === '/' && code[i+1] === '*') {
-      const end = code.indexOf('*/', i + 2);
-      const tok = end === -1 ? code.slice(i) : code.slice(i, end + 2);
-      out += span('hl-comment', tok);
-      i   += tok.length;
-      continue;
-    }
-
-    // 3. テンプレートリテラル `...`
-    if (code[i] === '`') {
-      let j = i + 1;
-      while (j < code.length) {
-        if (code[j] === '\\') { j += 2; continue; }
-        if (code[j] === '`')  { j++;    break;    }
-        j++;
-      }
-      out += span('hl-string', code.slice(i, j));
-      i    = j;
-      continue;
-    }
-
-    // 4. 文字列 "..." / '...'
-    if (code[i] === '"' || code[i] === "'") {
-      const q = code[i];
-      let j   = i + 1;
-      while (j < code.length) {
-        if (code[j] === '\\') { j += 2; continue; }
-        if (code[j] === '\n') { break; }
-        if (code[j] === q)    { j++;   break; }
-        j++;
-      }
-      out += span('hl-string', code.slice(i, j));
-      i    = j;
-      continue;
-    }
-
-    // 5. 数値
-    if (/\d/.test(code[i]) && (i === 0 || !/[a-zA-Z_$]/.test(code[i-1]))) {
-      const m = code.slice(i).match(/^(0x[\da-fA-F]+|\d+\.?\d*(?:e[+-]?\d+)?)/i);
-      if (m) {
-        out += span('hl-number', m[0]);
-        i   += m[0].length;
-        continue;
-      }
-    }
-
-    // 6. 識別子（キーワード・組み込み・関数名）
-    if (/[a-zA-Z_$]/.test(code[i])) {
-      let j = i + 1;
-      while (j < code.length && /[a-zA-Z0-9_$]/.test(code[j])) j++;
-      const word = code.slice(i, j);
-
-      if (KEYWORDS.has(word)) {
-        out += span('hl-keyword', word);
-      } else if (BUILTINS.has(word)) {
-        out += span('hl-builtin', word);
-      } else {
-        // 直後に ( があれば関数名
-        let k = j;
-        while (k < code.length && code[k] === ' ') k++;
-        out += code[k] === '(' ? span('hl-function', word) : esc(word);
-      }
-      i = j;
-      continue;
-    }
-
-    // 7. 演算子
-    if (/[+\-*/%=!&|^~<>?:;,.]/.test(code[i])) {
-      let j = i + 1;
-      while (j < code.length && /[+\-*/%=!&|^~<>?:]/.test(code[j])) j++;
-      out += span('hl-operator', code.slice(i, j));
-      i    = j;
-      continue;
-    }
-
-    // 8. その他（空白・改行・括弧など）
-    out += esc(code[i]);
-    i++;
-  }
-
-  return out;
-}
-
-// ハイライトを 300ms 遅延して適用（デバウンス）
-function scheduleHighlight() {
-  clearTimeout(state.hlTimer);
-  state.hlTimer = setTimeout(() => {
-    hlLayer.innerHTML  = highlight(editor.value);
-    // スクロール位置を再同期
-    hlLayer.scrollTop  = editor.scrollTop;
-    hlLayer.scrollLeft = editor.scrollLeft;
-  }, 300);
-}
-
-// ============================================================
 // 行番号の更新
 // ============================================================
 function updateLineNumbers() {
   const count = editor.value.split('\n').length;
   lineNumEl.textContent =
     Array.from({ length: count }, (_, i) => i + 1).join('\n');
+  // textarea のスクロールと同期
   lineNumEl.scrollTop = editor.scrollTop;
 }
 
@@ -258,7 +95,7 @@ function updateLineNumbers() {
 function bindEvents() {
   editor.addEventListener('keydown', onEditorKeydown);
   editor.addEventListener('input',   onEditorInput);
-  editor.addEventListener('scroll',  onEditorScroll);
+  editor.addEventListener('scroll',  () => { lineNumEl.scrollTop = editor.scrollTop; });
   editor.addEventListener('click',   updateStatusPos);
   editor.addEventListener('keyup',   updateStatusPos);
 
@@ -269,19 +106,6 @@ function bindEvents() {
     if (e.key === 'Enter')  { e.shiftKey ? findPrev() : findNext(); e.preventDefault(); }
     if (e.key === 'Escape') closeSearch();
   });
-
-  // ウィンドウリサイズ時にレイアウトを再計算
-  window.addEventListener('resize', syncLayout);
-}
-
-// ============================================================
-// スクロール同期
-// textarea のスクロールに highlight-layer と行番号を追従させる
-// ============================================================
-function onEditorScroll() {
-  hlLayer.scrollTop    = editor.scrollTop;
-  hlLayer.scrollLeft   = editor.scrollLeft;
-  lineNumEl.scrollTop  = editor.scrollTop;
 }
 
 // ============================================================
@@ -289,81 +113,71 @@ function onEditorScroll() {
 // ============================================================
 function onEditorKeydown(e) {
 
-  // ---- Tab: スペース4つを挿入 ----
+  // ---- Tab: スペース4つ ----
   if (e.key === 'Tab') {
     e.preventDefault();
-    insertAtCursor('    ');
+    insert('    ');
     return;
   }
 
   // ---- Enter: 自動インデント ----
-  // 前の行のインデント（先頭スペース）を引き継ぐ。
-  // { で終わっていれば追加インデント。
   if (e.key === 'Enter') {
     e.preventDefault();
-    const start      = editor.selectionStart;
-    const before     = editor.value.substring(0, start);
-    const lines      = before.split('\n');
-    const lastLine   = lines[lines.length - 1];
-    const indent     = lastLine.match(/^(\s*)/)[1];
-    const extra      = lastLine.trimEnd().endsWith('{') ? '    ' : '';
-    insertAtCursor('\n' + indent + extra);
+    const before    = editor.value.substring(0, editor.selectionStart);
+    const lines     = before.split('\n');
+    const lastLine  = lines[lines.length - 1];
+    const indent    = lastLine.match(/^(\s*)/)[1];
+    const extra     = lastLine.trimEnd().endsWith('{') ? '    ' : '';
+    insert('\n' + indent + extra);
     return;
   }
 
-  // ---- 括弧補完 ----
-  // 開き括弧を入力したとき、対応する閉じ括弧を自動追加する。
-  // ただし「閉じ括弧を追加するだけ」で、それ以上の干渉はしない。
-  // （カーソルを中に移動するだけで、閉じ括弧スキップ等はしない）
+  // ---- 括弧補完: ( [ { ----
+  // 開き括弧を入力したとき閉じ括弧を追加してカーソルを中に置く
   const PAIRS = { '(': ')', '[': ']', '{': '}' };
   if (PAIRS[e.key]) {
     e.preventDefault();
-    const start = editor.selectionStart;
-    const end   = editor.selectionEnd;
-    // テキストが選択されている場合は選択範囲を括弧で囲む
-    if (start !== end) {
-      const selected = editor.value.substring(start, end);
-      insertAtCursor(e.key + selected + PAIRS[e.key]);
-      // カーソルを閉じ括弧の前に移動
-      editor.selectionStart = editor.selectionEnd = start + 1 + selected.length;
+    const s = editor.selectionStart;
+    const e2 = editor.selectionEnd;
+    if (s !== e2) {
+      // テキスト選択中: 選択範囲を括弧で囲む
+      const sel = editor.value.substring(s, e2);
+      insert(e.key + sel + PAIRS[e.key]);
+      editor.selectionStart = editor.selectionEnd = s + 1 + sel.length;
     } else {
-      // 選択なし: 開き + 閉じを挿入してカーソルを中に置く
-      insertAtCursor(e.key + PAIRS[e.key]);
-      editor.selectionStart = editor.selectionEnd = start + 1;
+      // 選択なし: 開き+閉じを挿入してカーソルを中に
+      insert(e.key + PAIRS[e.key]);
+      editor.selectionStart = editor.selectionEnd = s + 1;
     }
     onEditorInput();
     return;
   }
 
-  // 引用符補完（" ' ` ）
-  // 同じ引用符を開き・閉じとして扱う
-  const QUOTES = ['"', "'", '`'];
-  if (QUOTES.includes(e.key)) {
+  // ---- 引用符補完: " ' ` ----
+  if (e.key === '"' || e.key === "'" || e.key === '`') {
     e.preventDefault();
-    const start = editor.selectionStart;
-    const end   = editor.selectionEnd;
-    if (start !== end) {
-      // 選択範囲を引用符で囲む
-      const selected = editor.value.substring(start, end);
-      insertAtCursor(e.key + selected + e.key);
-      editor.selectionStart = editor.selectionEnd = start + 1 + selected.length;
+    const s  = editor.selectionStart;
+    const e2 = editor.selectionEnd;
+    if (s !== e2) {
+      const sel = editor.value.substring(s, e2);
+      insert(e.key + sel + e.key);
+      editor.selectionStart = editor.selectionEnd = s + 1 + sel.length;
     } else {
-      // 選択なし: 開き + 閉じを挿入してカーソルを中に置く
-      insertAtCursor(e.key + e.key);
-      editor.selectionStart = editor.selectionEnd = start + 1;
+      insert(e.key + e.key);
+      editor.selectionStart = editor.selectionEnd = s + 1;
     }
     onEditorInput();
     return;
   }
 }
 
-// カーソル位置にテキストを挿入するユーティリティ
-function insertAtCursor(text) {
-  const start = editor.selectionStart;
-  const end   = editor.selectionEnd;
+// カーソル位置にテキストを挿入する
+function insert(text) {
+  const s = editor.selectionStart;
+  const e = editor.selectionEnd;
   editor.value =
-    editor.value.substring(0, start) + text + editor.value.substring(end);
-  editor.selectionStart = editor.selectionEnd = start + text.length;
+    editor.value.substring(0, s) + text + editor.value.substring(e);
+  editor.selectionStart = editor.selectionEnd = s + text.length;
 }
 
 function onEditorInput() {
@@ -371,7 +185,6 @@ function onEditorInput() {
   updateTitle();
   updateLineNumbers();
   updateStatusPos();
-  scheduleHighlight();
 }
 
 // ============================================================
@@ -428,7 +241,7 @@ function findNext() {
   doSearch();
   if (!state.searchResults.length) return;
   state.searchIndex = (state.searchIndex + 1) % state.searchResults.length;
-  highlightResult();
+  jumpToResult();
 }
 
 function findPrev() {
@@ -436,18 +249,19 @@ function findPrev() {
   if (!state.searchResults.length) return;
   state.searchIndex =
     (state.searchIndex - 1 + state.searchResults.length) % state.searchResults.length;
-  highlightResult();
+  jumpToResult();
 }
 
-function highlightResult() {
-  const idx   = state.searchResults[state.searchIndex];
-  const qlen  = searchInput.value.length;
+function jumpToResult() {
+  const idx  = state.searchResults[state.searchIndex];
+  const qlen = searchInput.value.length;
   editor.focus();
   editor.setSelectionRange(idx, idx + qlen);
+  // 該当行が見えるようにスクロール
   const lineNo = editor.value.substring(0, idx).split('\n').length;
   const lineH  = parseFloat(getComputedStyle(editor).fontSize) * 1.6;
   editor.scrollTop = Math.max(0, (lineNo - 3) * lineH);
-  onEditorScroll();
+  lineNumEl.scrollTop = editor.scrollTop;
 }
 
 function escapeRegex(s) {
@@ -458,11 +272,11 @@ function escapeRegex(s) {
 // コメントアウト / 解除
 // ============================================================
 function toggleComment() {
-  const start = editor.selectionStart;
-  const end   = editor.selectionEnd;
+  const s     = editor.selectionStart;
+  const e     = editor.selectionEnd;
   const code  = editor.value;
-  const sLine = code.substring(0, start).split('\n').length - 1;
-  const eLine = code.substring(0, end).split('\n').length - 1;
+  const sLine = code.substring(0, s).split('\n').length - 1;
+  const eLine = code.substring(0, e).split('\n').length - 1;
   const lines = code.split('\n');
 
   const allCommented = lines
@@ -514,7 +328,7 @@ function newFile() {
   state.currentFileName = 'untitled.js';
   state.isModified      = false;
   updateTitle();
-  onEditorInput();
+  updateLineNumbers();
   setStatusMsg('新規ファイルを作成しました');
 }
 
@@ -531,7 +345,7 @@ function onFileSelected(e) {
     state.currentFileName = file.name;
     state.isModified      = false;
     updateTitle();
-    onEditorInput();
+    updateLineNumbers();
     setStatusMsg('ファイルを開きました: ' + file.name);
   };
   reader.readAsText(file, 'UTF-8');
@@ -558,18 +372,14 @@ function saveAsFile() {
 
 // ============================================================
 // フォントサイズ変更
-// textarea・highlight-layer・行番号を同時に変更する
 // ============================================================
 function changeFontSize(delta) {
   const cur  = parseFloat(getComputedStyle(editor).fontSize);
   const next = Math.min(32, Math.max(8, cur + delta));
-  const px   = next + 'px';
-  editor.style.fontSize    = px;
-  hlLayer.style.fontSize   = px;
-  lineNumEl.style.fontSize = px;
-  outputEl.style.fontSize  = px;
+  editor.style.fontSize    = next + 'px';
+  lineNumEl.style.fontSize = next + 'px';
+  outputEl.style.fontSize  = next + 'px';
   updateLineNumbers();
-  syncLayout();
 }
 
 // ============================================================
@@ -579,7 +389,8 @@ function updateStatusPos() {
   const pos   = editor.selectionStart;
   const text  = editor.value.substring(0, pos);
   const lines = text.split('\n');
-  statusPos.textContent = '行: ' + lines.length + '  列: ' + (lines[lines.length-1].length + 1);
+  statusPos.textContent =
+    '行: ' + lines.length + '  列: ' + (lines[lines.length - 1].length + 1);
 }
 
 let statusTimer = null;
@@ -590,7 +401,8 @@ function setStatusMsg(msg) {
 }
 
 function updateTitle() {
-  document.title = (state.isModified ? '● ' : '') + 'JS Editor - ' + state.currentFileName;
+  document.title =
+    (state.isModified ? '● ' : '') + 'JS Editor - ' + state.currentFileName;
 }
 
 function setRunStatus(text, cls) {
