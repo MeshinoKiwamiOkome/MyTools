@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JS Editor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ========== ツールバー ========== -->
+  <div id="toolbar">
+    <span class="toolbar-title">⚡ JS Editor</span>
+
+    <div class="toolbar-group">
+      <button onclick="newFile()"       title="新規作成 (Ctrl+N)">📄 新規</button>
+      <button onclick="openFile()"      title="開く (Ctrl+O)">📂 開く</button>
+      <button onclick="saveFile()"      title="保存 (Ctrl+S)">💾 保存</button>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <div class="toolbar-group">
+      <button onclick="editorUndo()"    title="元に戻す (Ctrl+Z)">↩ 元に戻す</button>
+      <button onclick="editorRedo()"    title="やり直し (Ctrl+Y)">↪ やり直し</button>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <div class="toolbar-group">
+      <button onclick="openSearch()"    title="検索 (Ctrl+F)">🔍 検索</button>
+      <button onclick="toggleComment()" title="コメント (Ctrl+/)">💬 コメント</button>
+      <button onclick="autoIndent()"    title="整形 (Ctrl+I)">✨ 整形</button>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <div class="toolbar-group">
+      <button onclick="runCode()"   id="btn-run"  title="実行 (F5)">▶ 実行</button>
+      <button onclick="stopCode()"  id="btn-stop" title="停止 (F6)">■ 停止</button>
+      <button onclick="clearOutput()" title="クリア (F7)">🗑 クリア</button>
+    </div>
+  </div>
+
+  <!-- ========== 検索バー ========== -->
+  <div id="search-bar" class="hidden">
+    <input id="search-input" type="text" placeholder="検索..." />
+    <button onclick="findNext()">次へ</button>
+    <button onclick="findPrev()">前へ</button>
+    <span id="search-count"></span>
+    <button onclick="closeSearch()" class="close-btn">✕</button>
+  </div>
+
+  <!-- ========== メインエリア ========== -->
+  <div id="main">
+
+    <!-- エディタペイン -->
+    <div id="editor-pane">
+      <div id="editor-wrap">
+        <!-- 行番号 -->
+        <div id="line-numbers"></div>
+        <!-- テキストエリア（contenteditable） -->
+        <div id="editor"
+             contenteditable="true"
+             spellcheck="false"
+             autocorrect="off"
+             autocapitalize="off"
+             data-gramm="false"></div>
+      </div>
+    </div>
+
+    <!-- リサイズハンドル -->
+    <div id="resizer"></div>
+
+    <!-- 出力パネル -->
+    <div id="output-pane">
+      <div id="output-header">
+        <span>▼ 出力 / コンソール</span>
+        <span id="run-status" class="status-idle">● 待機中</span>
+      </div>
+      <div id="output"></div>
+      <!-- stdin 入力欄 -->
+      <div id="stdin-bar">
+        <span class="stdin-label">stdin &gt;</span>
+        <input id="stdin-input" type="text"
+               placeholder="実行中のプログラムへ入力して Enter..."
+               onkeydown="if(event.key==='Enter') sendStdin()" />
+        <button onclick="sendStdin()">送信</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ========== ステータスバー ========== -->
+  <div id="statusbar">
+    <span id="status-left">JavaScript | UTF-8</span>
+    <span id="status-msg">準備完了</span>
+    <span id="status-pos">行: 1  列: 1</span>
+  </div>
+
+  <!-- ファイル読み込み用の隠し input -->
+  <input type="file" id="file-input" accept=".js,.mjs,.cjs,.txt"
+         style="display:none" onchange="onFileSelected(event)" />
+
+  <script src="editor.js"></script>
+</body>
+</html>
