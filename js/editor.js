@@ -1,13 +1,25 @@
 // ============================================================
-// editor.js  シンプル・快適操作版
-//
-// ・textarea をそのまま使う（文字は常に見える）
-// ・ハイライトは廃止（操作感を最優先）
-// ・括弧補完・自動インデントのみ実装
-// ・それ以外のキー操作はブラウザに任せる
+// editor.js
+// CodeMirror 6 を使ったシンプルな JS エディタ
+// CDN から読み込むため Node.js / npm 不要
 // ============================================================
 
-'use strict';
+import { EditorState }        from '@codemirror/state';
+import { EditorView, keymap, lineNumbers, highlightActiveLine }
+                               from '@codemirror/view';
+import { defaultKeymap, indentWithTab, history, historyKeymap,
+         toggleComment as cmToggleComment,
+         indentMore, indentLess }
+                               from '@codemirror/commands';
+import { javascript }          from '@codemirror/lang-javascript';
+import { oneDark }             from '@codemirror/theme-one-dark';
+import { bracketMatching, indentOnInput, foldGutter }
+                               from '@codemirror/language';
+import { closeBrackets, closeBracketsKeymap }
+                               from '@codemirror/autocomplete';
+import { searchKeymap, search, SearchQuery,
+         findNext as cmFindNext, findPrevious as cmFindPrev,
+         setSearchQuery }      from '@codemirror/search';
 
 // ============================================================
 // 状態管理
@@ -21,13 +33,12 @@ const state = {
   stdinResolvers:  [],
   searchResults:   [],
   searchIndex:     -1,
+  fontSize:        13,
 };
 
 // ============================================================
 // DOM 要素
 // ============================================================
-const editor      = document.getElementById('editor');
-const lineNumEl   = document.getElementById('line-numbers');
 const outputEl    = document.getElementById('output');
 const runStatus   = document.getElementById('run-status');
 const statusMsg   = document.getElementById('status-msg');
@@ -67,124 +78,115 @@ fetchExample();
 `;
 
 // ============================================================
+// CodeMirror エディタの初期化
+// ============================================================
+let cmView; // CodeMirror の EditorView インスタンス
+
+function initEditor() {
+  // カーソル移動時にステータスバーを更新するリスナー
+  const updateListener = EditorView.updateListener.of((update) => {
+    if (update.docChanged) {
+      state.isModified = true;
+      updateTitle();
+    }
+    // カーソル位置を更新
+    const pos   = update.state.selection.main.head;
+    const line  = update.state.doc.lineAt(pos);
+    const col   = pos - line.from + 1;
+    statusPos.textContent = '行: ' + line.number + '  列: ' + col;
+  });
+
+  // エディタの初期設定
+  const startState = EditorState.create({
+    doc: SAMPLE_CODE,
+    extensions: [
+      // 行番号表示
+      lineNumbers(),
+      // 現在行ハイライト
+      highlightActiveLine(),
+      // Undo/Redo 履歴
+      history(),
+      // JavaScript シンタックスハイライト
+      javascript(),
+      // ダークテーマ（One Dark）
+      oneDark,
+      // 括弧の対応ハイライト
+      bracketMatching(),
+      // 括弧の自動補完（入力したら閉じ括弧を追加）
+      closeBrackets(),
+      // Enter 時の自動インデント
+      indentOnInput(),
+      // 折りたたみ
+      foldGutter(),
+      // キーマップ
+      keymap.of([
+        // Tab でインデント
+        indentWithTab,
+        // 括弧補完のキーマップ
+        ...closeBracketsKeymap,
+        // デフォルトキーマップ（Ctrl+Z 等）
+        ...defaultKeymap,
+        // Undo/Redo
+        ...historyKeymap,
+        // 検索
+        ...searchKeymap,
+      ]),
+      // 変更リスナー
+      updateListener,
+      // 折り返しなし（横スクロール）
+      EditorView.lineWrapping,
+    ],
+  });
+
+  cmView = new EditorView({
+    state:  startState,
+    parent: document.getElementById('editor-wrap'),
+  });
+}
+
+// ============================================================
+// コードの取得・セット
+// ============================================================
+
+/** エディタのコード全文を返す */
+function getCode() {
+  return cmView.state.doc.toString();
+}
+
+/** エディタにコードをセットする */
+function setCode(code) {
+  cmView.dispatch({
+    changes: {
+      from:    0,
+      to:      cmView.state.doc.length,
+      insert:  code,
+    },
+  });
+}
+
+// ============================================================
 // 初期化
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
-  editor.value = SAMPLE_CODE;
-  updateLineNumbers();
-  updateStatusPos();
+  initEditor();
   bindEvents();
   initResizer();
   setStatusMsg('準備完了');
 });
 
 // ============================================================
-// 行番号の更新
-// ============================================================
-function updateLineNumbers() {
-  const count = editor.value.split('\n').length;
-  lineNumEl.textContent =
-    Array.from({ length: count }, (_, i) => i + 1).join('\n');
-  // textarea のスクロールと同期
-  lineNumEl.scrollTop = editor.scrollTop;
-}
-
-// ============================================================
 // イベントバインド
 // ============================================================
 function bindEvents() {
-  editor.addEventListener('keydown', onEditorKeydown);
-  editor.addEventListener('input',   onEditorInput);
-  editor.addEventListener('scroll',  () => { lineNumEl.scrollTop = editor.scrollTop; });
-  editor.addEventListener('click',   updateStatusPos);
-  editor.addEventListener('keyup',   updateStatusPos);
-
+  // グローバルショートカット
   document.addEventListener('keydown', onGlobalKeydown);
 
+  // 検索入力
   searchInput.addEventListener('input', doSearch);
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter')  { e.shiftKey ? findPrev() : findNext(); e.preventDefault(); }
     if (e.key === 'Escape') closeSearch();
   });
-}
-
-// ============================================================
-// エディタ内キー操作
-// ============================================================
-function onEditorKeydown(e) {
-
-  // ---- Tab: スペース4つ ----
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    insert('    ');
-    return;
-  }
-
-  // ---- Enter: 自動インデント ----
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    const before    = editor.value.substring(0, editor.selectionStart);
-    const lines     = before.split('\n');
-    const lastLine  = lines[lines.length - 1];
-    const indent    = lastLine.match(/^(\s*)/)[1];
-    const extra     = lastLine.trimEnd().endsWith('{') ? '    ' : '';
-    insert('\n' + indent + extra);
-    return;
-  }
-
-  // ---- 括弧補完: ( [ { ----
-  // 開き括弧を入力したとき閉じ括弧を追加してカーソルを中に置く
-  const PAIRS = { '(': ')', '[': ']', '{': '}' };
-  if (PAIRS[e.key]) {
-    e.preventDefault();
-    const s = editor.selectionStart;
-    const e2 = editor.selectionEnd;
-    if (s !== e2) {
-      // テキスト選択中: 選択範囲を括弧で囲む
-      const sel = editor.value.substring(s, e2);
-      insert(e.key + sel + PAIRS[e.key]);
-      editor.selectionStart = editor.selectionEnd = s + 1 + sel.length;
-    } else {
-      // 選択なし: 開き+閉じを挿入してカーソルを中に
-      insert(e.key + PAIRS[e.key]);
-      editor.selectionStart = editor.selectionEnd = s + 1;
-    }
-    onEditorInput();
-    return;
-  }
-
-  // ---- 引用符補完: " ' ` ----
-  if (e.key === '"' || e.key === "'" || e.key === '`') {
-    e.preventDefault();
-    const s  = editor.selectionStart;
-    const e2 = editor.selectionEnd;
-    if (s !== e2) {
-      const sel = editor.value.substring(s, e2);
-      insert(e.key + sel + e.key);
-      editor.selectionStart = editor.selectionEnd = s + 1 + sel.length;
-    } else {
-      insert(e.key + e.key);
-      editor.selectionStart = editor.selectionEnd = s + 1;
-    }
-    onEditorInput();
-    return;
-  }
-}
-
-// カーソル位置にテキストを挿入する
-function insert(text) {
-  const s = editor.selectionStart;
-  const e = editor.selectionEnd;
-  editor.value =
-    editor.value.substring(0, s) + text + editor.value.substring(e);
-  editor.selectionStart = editor.selectionEnd = s + text.length;
-}
-
-function onEditorInput() {
-  state.isModified = true;
-  updateTitle();
-  updateLineNumbers();
-  updateStatusPos();
 }
 
 // ============================================================
@@ -206,7 +208,7 @@ function onGlobalKeydown(e) {
 }
 
 // ============================================================
-// 検索
+// 検索（独自UI + CodeMirror の選択範囲移動）
 // ============================================================
 function openSearch() {
   searchBar.classList.remove('hidden');
@@ -219,16 +221,18 @@ function closeSearch() {
   state.searchResults     = [];
   state.searchIndex       = -1;
   searchCount.textContent = '';
-  editor.focus();
+  cmView.focus();
 }
 
 function doSearch() {
   const query = searchInput.value;
   state.searchResults = [];
   if (!query) { searchCount.textContent = ''; return; }
+
+  const code  = getCode();
   const regex = new RegExp(escapeRegex(query), 'gi');
   let m;
-  while ((m = regex.exec(editor.value)) !== null) {
+  while ((m = regex.exec(code)) !== null) {
     state.searchResults.push(m.index);
   }
   searchCount.textContent =
@@ -253,15 +257,14 @@ function findPrev() {
 }
 
 function jumpToResult() {
-  const idx  = state.searchResults[state.searchIndex];
-  const qlen = searchInput.value.length;
-  editor.focus();
-  editor.setSelectionRange(idx, idx + qlen);
-  // 該当行が見えるようにスクロール
-  const lineNo = editor.value.substring(0, idx).split('\n').length;
-  const lineH  = parseFloat(getComputedStyle(editor).fontSize) * 1.6;
-  editor.scrollTop = Math.max(0, (lineNo - 3) * lineH);
-  lineNumEl.scrollTop = editor.scrollTop;
+  const from = state.searchResults[state.searchIndex];
+  const to   = from + searchInput.value.length;
+  // CodeMirror の選択範囲を検索結果に移動
+  cmView.dispatch({
+    selection: { anchor: from, head: to },
+    scrollIntoView: true,
+  });
+  cmView.focus();
 }
 
 function escapeRegex(s) {
@@ -270,36 +273,18 @@ function escapeRegex(s) {
 
 // ============================================================
 // コメントアウト / 解除
+// CodeMirror のコマンドを使用
 // ============================================================
 function toggleComment() {
-  const s     = editor.selectionStart;
-  const e     = editor.selectionEnd;
-  const code  = editor.value;
-  const sLine = code.substring(0, s).split('\n').length - 1;
-  const eLine = code.substring(0, e).split('\n').length - 1;
-  const lines = code.split('\n');
-
-  const allCommented = lines
-    .slice(sLine, eLine + 1)
-    .filter(l => l.trim())
-    .every(l => l.trimStart().startsWith('//'));
-
-  const newLines = lines.map((line, i) => {
-    if (i < sLine || i > eLine) return line;
-    return allCommented
-      ? line.replace(/^(\s*)\/\/\s?/, '$1')
-      : line.replace(/^(\s*)/, '$1// ');
-  });
-
-  editor.value = newLines.join('\n');
-  onEditorInput();
+  cmToggleComment(cmView);
+  cmView.focus();
 }
 
 // ============================================================
-// インデント整形
+// インデント整形（独自実装）
 // ============================================================
 function autoIndent() {
-  const lines  = editor.value.split('\n');
+  const lines  = getCode().split('\n');
   const result = [];
   let depth    = 0;
   const ind    = '    ';
@@ -314,8 +299,7 @@ function autoIndent() {
     depth = Math.max(0, depth + opens - closes);
   }
 
-  editor.value = result.join('\n');
-  onEditorInput();
+  setCode(result.join('\n'));
   setStatusMsg('インデントを整形しました');
 }
 
@@ -324,11 +308,10 @@ function autoIndent() {
 // ============================================================
 function newFile() {
   if (state.isModified && !confirm('変更を破棄して新規作成しますか？')) return;
-  editor.value          = '';
+  setCode('');
   state.currentFileName = 'untitled.js';
   state.isModified      = false;
   updateTitle();
-  updateLineNumbers();
   setStatusMsg('新規ファイルを作成しました');
 }
 
@@ -341,11 +324,10 @@ function onFileSelected(e) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev) => {
-    editor.value         = ev.target.result;
+    setCode(ev.target.result);
     state.currentFileName = file.name;
     state.isModified      = false;
     updateTitle();
-    updateLineNumbers();
     setStatusMsg('ファイルを開きました: ' + file.name);
   };
   reader.readAsText(file, 'UTF-8');
@@ -353,7 +335,7 @@ function onFileSelected(e) {
 }
 
 function saveFile() {
-  const blob = new Blob([editor.value], { type: 'text/javascript;charset=utf-8' });
+  const blob = new Blob([getCode()], { type: 'text/javascript;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url; a.download = state.currentFileName; a.click();
@@ -374,25 +356,15 @@ function saveAsFile() {
 // フォントサイズ変更
 // ============================================================
 function changeFontSize(delta) {
-  const cur  = parseFloat(getComputedStyle(editor).fontSize);
-  const next = Math.min(32, Math.max(8, cur + delta));
-  editor.style.fontSize    = next + 'px';
-  lineNumEl.style.fontSize = next + 'px';
-  outputEl.style.fontSize  = next + 'px';
-  updateLineNumbers();
+  state.fontSize = Math.min(32, Math.max(8, state.fontSize + delta));
+  // CodeMirror のフォントサイズを CSS で変更
+  document.querySelector('.cm-editor').style.fontSize = state.fontSize + 'px';
+  outputEl.style.fontSize = state.fontSize + 'px';
 }
 
 // ============================================================
 // ステータスバー・タイトル更新
 // ============================================================
-function updateStatusPos() {
-  const pos   = editor.selectionStart;
-  const text  = editor.value.substring(0, pos);
-  const lines = text.split('\n');
-  statusPos.textContent =
-    '行: ' + lines.length + '  列: ' + (lines[lines.length - 1].length + 1);
-}
-
 let statusTimer = null;
 function setStatusMsg(msg) {
   statusMsg.textContent = msg;
@@ -445,7 +417,7 @@ function initResizer() {
 function runCode() {
   if (state.isRunning) { stopCode(); return; }
 
-  const code = editor.value.trim();
+  const code = getCode().trim();
   if (!code) { appendOutput('⚠ コードが空です。\n', 'out-warning'); return; }
 
   clearOutput();
