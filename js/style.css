@@ -1,0 +1,346 @@
+/* ============================================================
+   リセット・基本設定
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #1e1e2e;
+  --bg2:       #181825;
+  --bg3:       #11111b;
+  --fg:        #cdd6f4;
+  --fg-dim:    #6c7086;
+  --border:    #45475a;
+  --select:    #313244;
+  --cursor:    #f5c2e7;
+  --keyword:   #cba6f7;
+  --builtin:   #89dceb;
+  --func:      #89b4fa;
+  --string:    #a6e3a1;
+  --comment:   #6c7086;
+  --number:    #fab387;
+  --operator:  #89dceb;
+  --error-bg:  #3d1a1a;
+  --error-fg:  #f38ba8;
+  --green:     #a6e3a1;
+  --yellow:    #f9e2af;
+  --blue:      #89b4fa;
+  --red:       #f38ba8;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+}
+
+/* ============================================================
+   ツールバー
+   ============================================================ */
+#toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--select);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  min-height: 36px;
+}
+
+.toolbar-title {
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--blue);
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 2px;
+}
+
+.toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+#toolbar button {
+  background: var(--border);
+  color: var(--fg);
+  border: none;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+#toolbar button:hover        { background: var(--select); filter: brightness(1.3); }
+#btn-run                     { background: #40a02b !important; }
+#btn-run:hover               { background: #2d7a1f !important; }
+#btn-stop                    { background: #d20f39 !important; }
+#btn-stop:hover              { background: #a00a2a !important; }
+
+/* ============================================================
+   検索バー
+   ============================================================ */
+#search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: var(--select);
+  border-bottom: 1px solid var(--border);
+}
+#search-bar.hidden { display: none; }
+
+#search-input {
+  background: var(--bg2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 13px;
+  width: 220px;
+  outline: none;
+}
+#search-input:focus { border-color: var(--blue); }
+
+#search-bar button {
+  background: var(--border);
+  color: var(--fg);
+  border: none;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+#search-bar button:hover { filter: brightness(1.3); }
+#search-bar .close-btn   { background: transparent; font-size: 14px; }
+#search-count            { font-size: 12px; color: var(--fg-dim); }
+
+/* ============================================================
+   メインエリア（エディタ + 出力パネル）
+   上下分割・ドラッグでリサイズ可能
+   ============================================================ */
+#main {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 36px - 24px); /* ツールバー・ステータスバー分を引く */
+  overflow: hidden;
+}
+
+/* ---- エディタペイン ---- */
+#editor-pane {
+  flex: 1 1 60%;
+  min-height: 80px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#editor-wrap {
+  display: flex;
+  flex: 1;
+  overflow: auto;
+  background: var(--bg);
+}
+
+/* 行番号 */
+#line-numbers {
+  min-width: 48px;
+  padding: 8px 6px;
+  background: var(--bg2);
+  color: var(--fg-dim);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: right;
+  user-select: none;
+  white-space: pre;
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* エディタ本体 */
+#editor {
+  flex: 1;
+  padding: 8px 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg);
+  background: var(--bg);
+  outline: none;
+  white-space: pre;
+  tab-size: 4;
+  caret-color: var(--cursor);
+  min-height: 100%;
+}
+
+/* シンタックスハイライト用スパン */
+.hl-keyword  { color: var(--keyword);  }
+.hl-builtin  { color: var(--builtin);  }
+.hl-function { color: var(--func);     }
+.hl-string   { color: var(--string);   }
+.hl-comment  { color: var(--comment);  font-style: italic; }
+.hl-number   { color: var(--number);   }
+.hl-operator { color: var(--operator); }
+
+/* 現在行ハイライト */
+.current-line { background: #2a2a3e; display: block; }
+
+/* エラー行ハイライト */
+.error-line { background: var(--error-bg); color: var(--error-fg); display: block; }
+
+/* ---- リサイズハンドル ---- */
+#resizer {
+  height: 5px;
+  background: var(--border);
+  cursor: ns-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+#resizer:hover { background: var(--blue); }
+
+/* ---- 出力パネル ---- */
+#output-pane {
+  flex: 0 0 200px;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg3);
+  overflow: hidden;
+}
+
+#output-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 12px;
+  background: var(--select);
+  font-size: 12px;
+  font-weight: bold;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* 実行ステータス */
+.status-idle    { color: var(--fg-dim); }
+.status-running { color: var(--green);  }
+.status-done    { color: var(--green);  }
+.status-error   { color: var(--red);    }
+.status-stopped { color: var(--yellow); }
+
+/* 出力テキスト */
+#output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 出力テキストの色分け */
+.out-stdout  { color: var(--fg);     }
+.out-stderr  { color: var(--red);    }
+.out-info    { color: var(--blue);   }
+.out-success { color: var(--green);  }
+.out-warning { color: var(--yellow); }
+.out-dim     { color: var(--fg-dim); }
+
+/* stdin 入力欄 */
+#stdin-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--select);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.stdin-label { font-size: 12px; color: var(--fg-dim); white-space: nowrap; }
+
+#stdin-input {
+  flex: 1;
+  background: var(--bg2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-family: monospace;
+  font-size: 12px;
+  outline: none;
+}
+#stdin-input:focus { border-color: var(--blue); }
+
+#stdin-bar button {
+  background: var(--border);
+  color: var(--fg);
+  border: none;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+#stdin-bar button:hover { filter: brightness(1.3); }
+
+/* ============================================================
+   ステータスバー
+   ============================================================ */
+#statusbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  padding: 0 12px;
+  background: var(--select);
+  font-size: 11px;
+  color: var(--fg-dim);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#status-msg { color: var(--green); }
+
+/* ============================================================
+   自動補完ポップアップ
+   ============================================================ */
+#autocomplete {
+  position: fixed;
+  background: var(--select);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  z-index: 9999;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  min-width: 160px;
+}
+#autocomplete.hidden { display: none; }
+
+.ac-item {
+  padding: 4px 12px;
+  cursor: pointer;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.ac-item:hover,
+.ac-item.selected { background: var(--blue); color: var(--bg); }
+
+/* ============================================================
+   スクロールバーのカスタマイズ
+   ============================================================ */
+::-webkit-scrollbar              { width: 8px; height: 8px; }
+::-webkit-scrollbar-track        { background: var(--bg2); }
+::-webkit-scrollbar-thumb        { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover  { background: var(--fg-dim); }
