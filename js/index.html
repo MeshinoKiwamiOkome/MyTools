@@ -21,13 +21,6 @@
     <div class="toolbar-sep"></div>
 
     <div class="toolbar-group">
-      <button onclick="editorUndo()"    title="元に戻す (Ctrl+Z)">↩ 元に戻す</button>
-      <button onclick="editorRedo()"    title="やり直し (Ctrl+Y)">↪ やり直し</button>
-    </div>
-
-    <div class="toolbar-sep"></div>
-
-    <div class="toolbar-group">
       <button onclick="openSearch()"    title="検索 (Ctrl+F)">🔍 検索</button>
       <button onclick="toggleComment()" title="コメント (Ctrl+/)">💬 コメント</button>
       <button onclick="autoIndent()"    title="整形 (Ctrl+I)">✨ 整形</button>
@@ -36,9 +29,16 @@
     <div class="toolbar-sep"></div>
 
     <div class="toolbar-group">
-      <button onclick="runCode()"   id="btn-run"  title="実行 (F5)">▶ 実行</button>
-      <button onclick="stopCode()"  id="btn-stop" title="停止 (F6)">■ 停止</button>
+      <button onclick="runCode()"     id="btn-run"  title="実行 (F5)">▶ 実行</button>
+      <button onclick="stopCode()"    id="btn-stop" title="停止 (F6)">■ 停止</button>
       <button onclick="clearOutput()" title="クリア (F7)">🗑 クリア</button>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <div class="toolbar-group">
+      <button onclick="changeFontSize(1)"  title="文字拡大 (Ctrl++)">A+</button>
+      <button onclick="changeFontSize(-1)" title="文字縮小 (Ctrl+-)">A-</button>
     </div>
   </div>
 
@@ -59,13 +59,9 @@
       <div id="editor-wrap">
         <!-- 行番号 -->
         <div id="line-numbers"></div>
-        <!-- テキストエリア（contenteditable） -->
-        <div id="editor"
-             contenteditable="true"
-             spellcheck="false"
-             autocorrect="off"
-             autocapitalize="off"
-             data-gramm="false"></div>
+        <!-- エディタ本体: textarea を使用（contenteditable より確実） -->
+        <textarea id="editor" spellcheck="false" autocorrect="off"
+                  autocapitalize="off" autocomplete="off"></textarea>
       </div>
     </div>
 
