@@ -2,417 +2,752 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>人に人が染み込む / Human Seeping Into Human</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>人に人が染み込む / Human Seeping</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      background: #0d0d1a;
+      background: #0a0a18;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      font-family: 'Segoe UI', sans-serif;
+      justify-content: flex-start;
+      min-height: 100dvh;
+      font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
       color: #ccc;
+      overflow-x: hidden;
+      padding: 12px 8px 24px;
+      touch-action: none;
     }
+
     h1 {
-      font-size: 1.1rem;
+      font-size: clamp(0.85rem, 3vw, 1.1rem);
       letter-spacing: 0.2em;
-      margin-bottom: 12px;
-      opacity: 0.7;
+      margin-bottom: 8px;
+      opacity: 0.6;
     }
+
+    #canvas-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 720px;
+    }
+
     canvas {
-      border-radius: 12px;
-      box-shadow: 0 0 40px rgba(100, 160, 255, 0.2);
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 14px;
+      box-shadow: 0 0 50px rgba(80, 140, 255, 0.18);
+      cursor: crosshair;
+      touch-action: none;
     }
-    #info {
-      margin-top: 14px;
-      font-size: 0.8rem;
-      opacity: 0.5;
-      letter-spacing: 0.1em;
-    }
-    #resetBtn {
-      margin-top: 16px;
-      padding: 8px 28px;
-      background: transparent;
-      border: 1px solid rgba(100,160,255,0.4);
-      color: #aac4ff;
+
+    /* ヒントオーバーレイ */
+    #hint {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.55);
+      color: rgba(255,255,255,0.6);
+      font-size: clamp(0.65rem, 2.2vw, 0.78rem);
+      padding: 5px 14px;
       border-radius: 20px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      letter-spacing: 0.1em;
-      transition: background 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+      transition: opacity 0.5s;
     }
-    #resetBtn:hover { background: rgba(100,160,255,0.15); }
+
+    /* コントロールパネル */
+    #controls {
+      width: 100%;
+      max-width: 720px;
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 9px 20px;
+      background: transparent;
+      border-radius: 22px;
+      cursor: pointer;
+      font-size: clamp(0.75rem, 2.5vw, 0.88rem);
+      letter-spacing: 0.08em;
+      transition: background 0.25s, transform 0.1s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(0.95); }
+
+    #btnReset {
+      border: 1px solid rgba(255,120,120,0.45);
+      color: #ffaaaa;
+    }
+    #btnReset:hover { background: rgba(255,100,100,0.15); }
+
+    #btnBurst {
+      border: 1px solid rgba(100,180,255,0.45);
+      color: #aad4ff;
+    }
+    #btnBurst:hover { background: rgba(100,160,255,0.15); }
+
+    #btnRepel {
+      border: 1px solid rgba(255,200,80,0.45);
+      color: #ffe090;
+    }
+    #btnRepel:hover { background: rgba(255,200,80,0.12); }
+
+    /* 染み込み度スライダー */
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: clamp(0.72rem, 2.3vw, 0.82rem);
+      color: rgba(255,255,255,0.5);
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      width: clamp(100px, 28vw, 160px);
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.15);
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #7ab4ff;
+      cursor: pointer;
+    }
+
+    #statusText {
+      margin-top: 10px;
+      font-size: clamp(0.7rem, 2.2vw, 0.8rem);
+      opacity: 0.4;
+      letter-spacing: 0.1em;
+      min-height: 1.2em;
+    }
   </style>
 </head>
 <body>
-  <h1>人に人が染み込む</h1>
+
+<h1>人に人が染み込む</h1>
+
+<div id="canvas-wrap">
   <canvas id="canvas"></canvas>
-  <div id="info">粒子が染み込むほど、相手の色が変わっていく</div>
-  <button id="resetBtn">リセット</button>
+  <div id="hint">👆 画面をタップ・なぞって粒子を送り込もう</div>
+</div>
 
-  <script>
-    // =============================================
-    // MIT License
-    // Copyright (c) 2026 Human-Seeping Visualization
-    // =============================================
+<div id="controls">
+  <button class="btn" id="btnBurst">💥 感情の爆発（人A）</button>
+  <button class="btn" id="btnRepel">🛡 拒絶（人B）</button>
+  <button class="btn" id="btnReset">↺ リセット</button>
+  <div class="slider-wrap">
+    <span>染み込み速度</span>
+    <input type="range" id="speedSlider" min="1" max="5" value="2" step="0.5" />
+  </div>
+</div>
 
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+<div id="statusText" id="statusText">画面をタップして粒子を放出してください</div>
 
-    // ---- キャンバスサイズ ----
-    const W = 700, H = 420;
-    canvas.width = W;
-    canvas.height = H;
+<script>
+// =============================================
+// MIT License
+// Copyright (c) 2026 Human-Seeping Visualization
+// =============================================
 
-    // ---- 色設定 ----
-    const COLOR_A = { r: 80,  g: 140, b: 255 }; // 人Aの色（青）
-    const COLOR_B = { r: 255, g: 100, b: 120 }; // 人Bの色（赤）
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const hint    = document.getElementById('hint');
+const statusEl = document.getElementById('statusText');
 
-    // ---- 人物シルエット定義（SVGパスをCanvas描画用に変換） ----
-    // 簡略化した人型を描く関数
-    function drawHumanPath(ctx, cx, cy, scale) {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.scale(scale, scale);
-      // 頭
-      ctx.beginPath();
-      ctx.arc(0, -90, 28, 0, Math.PI * 2);
-      ctx.closePath();
-      // 胴体
-      ctx.moveTo(-30, -60);
-      ctx.lineTo(-38, 0);
-      ctx.lineTo(-22, 0);
-      ctx.lineTo(-18, 50);
-      ctx.lineTo(18, 50);
-      ctx.lineTo(22, 0);
-      ctx.lineTo(38, 0);
-      ctx.lineTo(30, -60);
-      ctx.closePath();
-      // 左足
-      ctx.moveTo(-18, 50);
-      ctx.lineTo(-24, 110);
-      ctx.lineTo(-8, 110);
-      ctx.lineTo(-4, 50);
-      ctx.closePath();
-      // 右足
-      ctx.moveTo(4, 50);
-      ctx.lineTo(8, 110);
-      ctx.lineTo(24, 110);
-      ctx.lineTo(18, 50);
-      ctx.closePath();
-      ctx.restore();
-    }
+// ---- 論理サイズ（内部解像度） ----
+const LW = 720, LH = 440;
+canvas.width  = LW;
+canvas.height = LH;
 
-    // ---- 人物オブジェクト ----
-    const personA = { x: 170, y: 230, scale: 1.0, color: { ...COLOR_A }, infusion: 0 };
-    const personB = { x: 530, y: 230, scale: 1.0, color: { ...COLOR_B }, infusion: 0 };
+// ---- 色 ----
+const COL_A = { r: 80,  g: 150, b: 255 };
+const COL_B = { r: 255, g: 90,  b: 110 };
 
-    // ---- パーティクル ----
-    let particles = [];
-    const MAX_PARTICLES = 180;
-    let absorbedCount = 0;
+// ---- 人物 ----
+const personA = { x: 175, y: 235, color: { ...COL_A }, infusion: 0 };
+const personB = { x: 545, y: 235, color: { ...COL_B }, infusion: 0, repelling: 0 };
 
-    // パーティクル生成（人Aの輪郭付近からランダムに放出）
-    function spawnParticle() {
-      if (particles.length >= MAX_PARTICLES) return;
-      // 人Aのシルエット内ランダム点（簡略：楕円近似）
-      const angle = Math.random() * Math.PI * 2;
-      const rx = 38 * personA.scale;
-      const ry = 100 * personA.scale;
-      const ox = Math.cos(angle) * rx * (0.3 + Math.random() * 0.7);
-      const oy = Math.sin(angle) * ry * (0.3 + Math.random() * 0.7) - 20;
+// ---- パーティクル ----
+let particles = [];
+let absorbedTotal = 0;
+const MAX_ABSORB = 220;
 
-      particles.push({
-        x: personA.x + ox,
-        y: personA.y + oy,
-        vx: 0,
-        vy: 0,
-        size: 2.5 + Math.random() * 3,
-        alpha: 0.9 + Math.random() * 0.1,
-        color: { ...personA.color },
-        state: 'flying',   // 'flying' | 'seeping' | 'absorbed'
-        seepProgress: 0,
-        delay: Math.random() * 60,  // フレーム遅延
-        wobble: Math.random() * Math.PI * 2,
-        wobbleSpeed: 0.04 + Math.random() * 0.04,
-        speed: 1.2 + Math.random() * 1.5,
-      });
-    }
+// ---- 状態 ----
+let speedMult = 2;
+let isPointerDown = false;
+let lastPointerPos = null;
+let ripples = [];
+let repelParticles = [];
+let hintTimer = null;
 
-    // ---- 人Bのシルエット内判定（簡略楕円） ----
-    function isInsidePersonB(x, y) {
-      const dx = x - personB.x;
-      const dy = y - (personB.y - 20);
-      return (dx * dx) / (42 * 42) + (dy * dy) / (105 * 105) < 1;
-    }
+// =============================================
+// ユーティリティ
+// =============================================
+function lerpColor(c1, c2, t) {
+  t = Math.max(0, Math.min(1, t));
+  return {
+    r: Math.round(c1.r + (c2.r - c1.r) * t),
+    g: Math.round(c1.g + (c2.g - c1.g) * t),
+    b: Math.round(c1.b + (c2.b - c1.b) * t),
+  };
+}
+function cs(c, a = 1) {
+  return `rgba(${c.r},${c.g},${c.b},${a})`;
+}
+function dist(x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
-    // ---- 色補間 ----
-    function lerpColor(c1, c2, t) {
-      return {
-        r: Math.round(c1.r + (c2.r - c1.r) * t),
-        g: Math.round(c1.g + (c2.g - c1.g) * t),
-        b: Math.round(c1.b + (c2.b - c1.b) * t),
-      };
-    }
+// ---- キャンバス座標変換（レスポンシブ対応） ----
+function toLogical(clientX, clientY) {
+  const rect  = canvas.getBoundingClientRect();
+  const scaleX = LW / rect.width;
+  const scaleY = LH / rect.height;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top)  * scaleY,
+  };
+}
 
-    function colorStr(c, a = 1) {
-      return `rgba(${c.r},${c.g},${c.b},${a})`;
-    }
+// =============================================
+// 人型パス描画
+// =============================================
+function buildHumanPath(cx, cy, sc = 1) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(sc, sc);
+  ctx.beginPath();
+  // 頭
+  ctx.arc(0, -92, 28, 0, Math.PI * 2);
+  // 胴体
+  ctx.moveTo(-30, -62);
+  ctx.bezierCurveTo(-42, -30, -40, 0, -36, 10);
+  ctx.lineTo(-22, 10);
+  ctx.lineTo(-18, 55);
+  ctx.lineTo(18, 55);
+  ctx.lineTo(22, 10);
+  ctx.lineTo(36, 10);
+  ctx.bezierCurveTo(40, 0, 42, -30, 30, -62);
+  ctx.closePath();
+  // 左足
+  ctx.moveTo(-18, 55);
+  ctx.lineTo(-26, 118);
+  ctx.lineTo(-8,  118);
+  ctx.lineTo(-2,  55);
+  ctx.closePath();
+  // 右足
+  ctx.moveTo(2,  55);
+  ctx.lineTo(8,  118);
+  ctx.lineTo(26, 118);
+  ctx.lineTo(18, 55);
+  ctx.closePath();
+  ctx.restore();
+}
 
-    // ---- 人物描画 ----
-    function drawPerson(person, label) {
-      ctx.save();
+// ---- 人Bシルエット内判定 ----
+function insideB(x, y) {
+  const dx = x - personB.x;
+  const dy = y - (personB.y - 20);
+  return (dx * dx) / (44 * 44) + (dy * dy) / (108 * 108) < 1;
+}
+// ---- 人Aシルエット内判定 ----
+function insideA(x, y) {
+  const dx = x - personA.x;
+  const dy = y - (personA.y - 20);
+  return (dx * dx) / (44 * 44) + (dy * dy) / (108 * 108) < 1;
+}
 
-      // グロー（染み込み度合いで強さ変化）
-      const glowColor = colorStr(person.color, 0.25 + person.infusion * 0.3);
-      ctx.shadowColor = colorStr(person.color, 1);
-      ctx.shadowBlur = 18 + person.infusion * 20;
+// =============================================
+// パーティクル生成
+// =============================================
+function spawnParticle(fromX, fromY, options = {}) {
+  const jitter = options.jitter ?? 18;
+  particles.push({
+    x:    fromX + (Math.random() - 0.5) * jitter,
+    y:    fromY + (Math.random() - 0.5) * jitter,
+    vx:   (Math.random() - 0.5) * 1.2,
+    vy:   (Math.random() - 0.5) * 1.2,
+    size: options.size ?? (2.5 + Math.random() * 3),
+    alpha: 1,
+    color: { ...personA.color },
+    state: 'flying',
+    seepProgress: 0,
+    wobble: Math.random() * Math.PI * 2,
+    wobbleSpeed: 0.03 + Math.random() * 0.04,
+    speed: (options.speed ?? (1.4 + Math.random() * 1.4)) * (speedMult / 2),
+    delay: options.delay ?? 0,
+    targetJitterX: (Math.random() - 0.5) * 50,
+    targetJitterY: (Math.random() - 0.5) * 90,
+  });
+}
 
-      // シルエット塗り
-      const grad = ctx.createRadialGradient(
-        person.x, person.y - 20, 5,
-        person.x, person.y - 20, 110
-      );
-      grad.addColorStop(0, colorStr(person.color, 0.9));
-      grad.addColorStop(1, colorStr(person.color, 0.5));
-
-      ctx.fillStyle = grad;
-      drawHumanPath(ctx, person.x, person.y, person.scale);
-      ctx.fill();
-
-      // 輪郭線
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = colorStr(person.color, 0.6);
-      ctx.lineWidth = 1.5;
-      drawHumanPath(ctx, person.x, person.y, person.scale);
-      ctx.stroke();
-
-      // ラベル
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = colorStr(person.color, 0.8);
-      ctx.font = '13px Segoe UI';
-      ctx.textAlign = 'center';
-      ctx.fillText(label, person.x, person.y + 145);
-
-      // 染み込み度バー
-      const barW = 80, barH = 6;
-      const bx = person.x - barW / 2;
-      const by = person.y + 158;
-      ctx.fillStyle = 'rgba(255,255,255,0.1)';
-      ctx.beginPath();
-      ctx.roundRect(bx, by, barW, barH, 3);
-      ctx.fill();
-      ctx.fillStyle = colorStr(person.color, 0.8);
-      ctx.beginPath();
-      ctx.roundRect(bx, by, barW * person.infusion, barH, 3);
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    // ---- パーティクル描画 ----
-    function drawParticles() {
-      particles.forEach(p => {
-        if (p.state === 'absorbed') return;
-        ctx.save();
-        ctx.globalAlpha = p.alpha;
-        ctx.shadowColor = colorStr(p.color, 0.8);
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = colorStr(p.color, 1);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      });
-    }
-
-    // ---- 接続線（人A → 粒子群の軌跡ヒント） ----
-    function drawConnectionHint() {
-      const flyingParticles = particles.filter(p => p.state === 'flying' && p.delay <= 0);
-      if (flyingParticles.length === 0) return;
-      ctx.save();
-      ctx.strokeStyle = `rgba(${COLOR_A.r},${COLOR_A.g},${COLOR_A.b},0.04)`;
-      ctx.lineWidth = 1;
-      flyingParticles.forEach(p => {
-        ctx.beginPath();
-        ctx.moveTo(personA.x, personA.y - 20);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-      });
-      ctx.restore();
-    }
-
-    // ---- 染み込みエフェクト（人Bの周囲に波紋） ----
-    let ripples = [];
-    function addRipple() {
-      ripples.push({ x: personB.x, y: personB.y - 20, r: 10, alpha: 0.6 });
-    }
-    function updateDrawRipples() {
-      ripples = ripples.filter(r => r.alpha > 0.01);
-      ripples.forEach(r => {
-        ctx.save();
-        ctx.strokeStyle = colorStr(personA.color, r.alpha);
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.ellipse(r.x, r.y, r.r * 0.4, r.r, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-        r.r += 2.5;
-        r.alpha *= 0.92;
-      });
-    }
-
-    // ---- 背景グリッド（雰囲気演出） ----
-    function drawBackground() {
-      ctx.fillStyle = '#0d0d1a';
-      ctx.fillRect(0, 0, W, H);
-
-      // 薄いグリッド
-      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-      ctx.lineWidth = 1;
-      for (let x = 0; x < W; x += 40) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-      }
-      for (let y = 0; y < H; y += 40) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-      }
-
-      // 中央の矢印ヒント
-      const midX = (personA.x + personB.x) / 2;
-      ctx.save();
-      ctx.globalAlpha = 0.15;
-      ctx.strokeStyle = colorStr(COLOR_A, 1);
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 6]);
-      ctx.beginPath();
-      ctx.moveTo(personA.x + 50, H / 2 - 20);
-      ctx.lineTo(personB.x - 50, H / 2 - 20);
-      ctx.stroke();
-      // 矢頭
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.moveTo(personB.x - 50, H / 2 - 26);
-      ctx.lineTo(personB.x - 38, H / 2 - 20);
-      ctx.lineTo(personB.x - 50, H / 2 - 14);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // ---- タイトル・進捗テキスト ----
-    function drawUI() {
-      const pct = Math.round(personB.infusion * 100);
-      ctx.save();
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.font = '12px Segoe UI';
-      ctx.textAlign = 'center';
-      ctx.fillText(`染み込み度: ${pct}%`, W / 2, H - 16);
-      ctx.restore();
-    }
-
-    // ---- メインループ ----
-    let frame = 0;
-    function update() {
-      frame++;
-
-      // パーティクル生成（一定間隔）
-      if (frame % 4 === 0 && absorbedCount < MAX_PARTICLES) {
-        spawnParticle();
-      }
-
-      particles.forEach(p => {
-        if (p.delay > 0) { p.delay--; return; }
-        if (p.state === 'absorbed') return;
-
-        if (p.state === 'flying') {
-          // 人Bへ向かうベクトル
-          const tx = personB.x + (Math.random() - 0.5) * 30;
-          const ty = (personB.y - 20) + (Math.random() - 0.5) * 80;
-          const dx = tx - p.x;
-          const dy = ty - p.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          // ふわふわ揺れ
-          p.wobble += p.wobbleSpeed;
-          const wobbleX = Math.sin(p.wobble) * 1.5;
-          const wobbleY = Math.cos(p.wobble * 0.7) * 1.0;
-
-          p.vx += (dx / dist) * 0.18 + wobbleX * 0.05;
-          p.vy += (dy / dist) * 0.18 + wobbleY * 0.05;
-
-          // 速度制限
-          const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-          if (speed > p.speed) {
-            p.vx = (p.vx / speed) * p.speed;
-            p.vy = (p.vy / speed) * p.speed;
-          }
-
-          p.x += p.vx;
-          p.y += p.vy;
-
-          // 人Bに到達したら染み込み開始
-          if (isInsidePersonB(p.x, p.y)) {
-            p.state = 'seeping';
-            addRipple();
-          }
-        }
-
-        if (p.state === 'seeping') {
-          // 人Bの中心に向かって収縮
-          const cx = personB.x;
-          const cy = personB.y - 20;
-          p.x += (cx - p.x) * 0.08;
-          p.y += (cy - p.y) * 0.08;
-          p.size *= 0.93;
-          p.alpha *= 0.95;
-          p.seepProgress += 0.04;
-
-          if (p.seepProgress >= 1 || p.size < 0.3) {
-            p.state = 'absorbed';
-            absorbedCount++;
-            // 人Bの色を人Aの色に近づける
-            const t = Math.min(absorbedCount / MAX_PARTICLES, 1);
-            personB.color = lerpColor(COLOR_B, COLOR_A, t * 0.85);
-            personB.infusion = t;
-          }
-        }
-      });
-
-      // 吸収済みパーティクルを定期的に除去
-      if (frame % 120 === 0) {
-        particles = particles.filter(p => p.state !== 'absorbed');
-      }
-    }
-
-    function draw() {
-      drawBackground();
-      drawConnectionHint();
-      updateDrawRipples();
-      drawPerson(personA, '人 A（発信者）');
-      drawPerson(personB, '人 B（受容者）');
-      drawParticles();
-      drawUI();
-    }
-
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    // ---- リセット ----
-    document.getElementById('resetBtn').addEventListener('click', () => {
-      particles = [];
-      absorbedCount = 0;
-      frame = 0;
-      personB.color = { ...COLOR_B };
-      personB.infusion = 0;
-      ripples = [];
+// 人Aシルエット内ランダム点から生成
+function spawnFromA(count = 1, options = {}) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const rx = 36, ry = 100;
+    const ox = Math.cos(angle) * rx * Math.random();
+    const oy = Math.sin(angle) * ry * Math.random() - 20;
+    spawnParticle(personA.x + ox, personA.y + oy, {
+      ...options,
+      delay: options.delay ?? Math.floor(Math.random() * 30),
     });
+  }
+}
 
-    loop();
-  </script>
+// 任意座標から生成（タップ・ドラッグ）
+function spawnFromPoint(lx, ly) {
+  spawnParticle(lx, ly, { jitter: 10, speed: 2.0 + Math.random(), delay: 0 });
+}
+
+// =============================================
+// 波紋・拒絶エフェクト
+// =============================================
+function addRipple(x, y, color) {
+  ripples.push({ x, y, r: 8, alpha: 0.7, color });
+}
+
+function triggerRepel() {
+  if (personB.repelling > 0) return;
+  personB.repelling = 60;
+
+  // 染み込み済み粒子を弾き返す演出
+  const repelCount = Math.floor(absorbedTotal * 0.25);
+  for (let i = 0; i < repelCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = Math.random() * 40;
+    repelParticles.push({
+      x: personB.x + Math.cos(angle) * r,
+      y: (personB.y - 20) + Math.sin(angle) * r * 0.8,
+      vx: Math.cos(angle) * (3 + Math.random() * 3),
+      vy: Math.sin(angle) * (3 + Math.random() * 3) - 2,
+      size: 2 + Math.random() * 2.5,
+      alpha: 0.9,
+      color: { ...personB.color },
+    });
+  }
+
+  // 染み込み度を少し戻す
+  const rollback = Math.min(personB.infusion, 0.18);
+  personB.infusion = Math.max(0, personB.infusion - rollback);
+  absorbedTotal = Math.floor(absorbedTotal * (1 - rollback));
+  personB.color = lerpColor(COL_B, COL_A, personB.infusion * 0.85);
+
+  updateStatus('🛡 拒絶！ 染み込みが少し戻った...');
+  addRipple(personB.x, personB.y - 20, COL_B);
+}
+
+// =============================================
+// 更新処理
+// =============================================
+let frame = 0;
+
+function updateParticles() {
+  const sp = speedMult / 2;
+
+  particles.forEach(p => {
+    if (p.delay > 0) { p.delay--; return; }
+    if (p.state === 'absorbed') return;
+
+    if (p.state === 'flying') {
+      const tx = personB.x + p.targetJitterX;
+      const ty = (personB.y - 20) + p.targetJitterY;
+      const dx = tx - p.x, dy = ty - p.y;
+      const d  = Math.sqrt(dx * dx + dy * dy) || 1;
+
+      p.wobble += p.wobbleSpeed;
+      const wx = Math.sin(p.wobble) * 1.8;
+      const wy = Math.cos(p.wobble * 0.7) * 1.2;
+
+      p.vx += (dx / d) * 0.22 * sp + wx * 0.04;
+      p.vy += (dy / d) * 0.22 * sp + wy * 0.04;
+
+      const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      if (spd > p.speed * sp) {
+        p.vx = (p.vx / spd) * p.speed * sp;
+        p.vy = (p.vy / spd) * p.speed * sp;
+      }
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // 拒絶中は人Bに近づけない
+      if (personB.repelling > 0) {
+        const d2 = dist(p.x, p.y, personB.x, personB.y - 20);
+        if (d2 < 60) {
+          const ax = (p.x - personB.x) / d2;
+          const ay = (p.y - (personB.y - 20)) / d2;
+          p.vx += ax * 2.5;
+          p.vy += ay * 2.5;
+        }
+      } else if (insideB(p.x, p.y)) {
+        p.state = 'seeping';
+        addRipple(p.x, p.y, personA.color);
+      }
+    }
+
+    if (p.state === 'seeping') {
+      const cx = personB.x, cy = personB.y - 20;
+      p.x += (cx - p.x) * 0.09 * sp;
+      p.y += (cy - p.y) * 0.09 * sp;
+      p.size  *= 0.92;
+      p.alpha *= 0.94;
+      p.seepProgress += 0.05 * sp;
+
+      if (p.seepProgress >= 1 || p.size < 0.25) {
+        p.state = 'absorbed';
+        absorbedTotal = Math.min(absorbedTotal + 1, MAX_ABSORB);
+        const t = absorbedTotal / MAX_ABSORB;
+        personB.infusion = t;
+        personB.color = lerpColor(COL_B, COL_A, t * 0.85);
+        if (absorbedTotal >= MAX_ABSORB) updateStatus('✨ 完全に染み込んだ...');
+      }
+    }
+  });
+
+  // 拒絶パーティクル更新
+  repelParticles = repelParticles.filter(p => p.alpha > 0.02);
+  repelParticles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.12;
+    p.alpha *= 0.93;
+    p.size  *= 0.97;
+  });
+
+  // 波紋更新
+  ripples = ripples.filter(r => r.alpha > 0.01);
+  ripples.forEach(r => {
+    r.r     += 2.8;
+    r.alpha *= 0.91;
+  });
+
+  // 拒絶カウントダウン
+  if (personB.repelling > 0) personB.repelling--;
+
+  // 自動生成（間引き）
+  if (frame % 6 === 0 && absorbedTotal < MAX_ABSORB) {
+    spawnFromA(1, { delay: 0 });
+  }
+
+  // 不要パーティクル除去
+  if (frame % 180 === 0) {
+    particles = particles.filter(p => p.state !== 'absorbed');
+  }
+}
+
+// =============================================
+// 描画処理
+// =============================================
+function drawBG() {
+  ctx.fillStyle = '#0a0a18';
+  ctx.fillRect(0, 0, LW, LH);
+
+  // グリッド
+  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < LW; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, LH); ctx.stroke();
+  }
+  for (let y = 0; y < LH; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(LW, y); ctx.stroke();
+  }
+
+  // 中央の流れ矢印
+  ctx.save();
+  ctx.globalAlpha = 0.1;
+  ctx.strokeStyle = cs(COL_A);
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([7, 7]);
+  ctx.beginPath();
+  ctx.moveTo(personA.x + 55, LH / 2 - 18);
+  ctx.lineTo(personB.x - 55, LH / 2 - 18);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(personB.x - 55, LH / 2 - 26);
+  ctx.lineTo(personB.x - 40, LH / 2 - 18);
+  ctx.lineTo(personB.x - 55, LH / 2 - 10);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawPerson(person, label, isB = false) {
+  ctx.save();
+
+  // 拒絶中の震え
+  let ox = 0;
+  if (isB && person.repelling > 0) {
+    ox = (Math.random() - 0.5) * 5 * (person.repelling / 60);
+  }
+
+  // グロー
+  ctx.shadowColor = cs(person.color, 1);
+  ctx.shadowBlur  = 20 + person.infusion * 25;
+
+  // グラデーション塗り
+  const grad = ctx.createRadialGradient(
+    person.x + ox, person.y - 20, 4,
+    person.x + ox, person.y - 20, 115
+  );
+  grad.addColorStop(0, cs(person.color, 0.95));
+  grad.addColorStop(1, cs(person.color, 0.45));
+  ctx.fillStyle = grad;
+  buildHumanPath(person.x + ox, person.y, 1);
+  ctx.fill();
+
+  // 輪郭
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = cs(person.color, 0.55);
+  ctx.lineWidth = 1.8;
+  buildHumanPath(person.x + ox, person.y, 1);
+  ctx.stroke();
+
+  // 拒絶シールド
+  if (isB && person.repelling > 0) {
+    const prog = person.repelling / 60;
+    ctx.strokeStyle = cs(COL_B, prog * 0.8);
+    ctx.lineWidth = 3;
+    ctx.shadowColor = cs(COL_B, prog);
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.ellipse(person.x, person.y - 20, 55, 115, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // ラベル
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = cs(person.color, 0.75);
+  ctx.font = 'bold 13px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, person.x, person.y + 152);
+
+  // 染み込みバー（人Bのみ）
+  if (isB) {
+    const bw = 90, bh = 7;
+    const bx = person.x - bw / 2;
+    const by = person.y + 163;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 4);
+    ctx.fill();
+    const barColor = lerpColor(COL_B, COL_A, person.infusion);
+    ctx.fillStyle = cs(barColor, 0.9);
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw * person.infusion, bh, 4);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '11px Segoe UI';
+    ctx.fillText(`${Math.round(person.infusion * 100)}%`, person.x, by + bh + 14);
+  }
+
+  ctx.restore();
+}
+
+function drawParticles() {
+  // 通常パーティクル
+  particles.forEach(p => {
+    if (p.state === 'absorbed' || p.delay > 0) return;
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.shadowColor = cs(p.color, 0.9);
+    ctx.shadowBlur  = 9;
+    ctx.fillStyle   = cs(p.color, 1);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // 拒絶パーティクル
+  repelParticles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.shadowColor = cs(p.color, 0.8);
+    ctx.shadowBlur  = 7;
+    ctx.fillStyle   = cs(p.color, 1);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawRipples() {
+  ripples.forEach(r => {
+    ctx.save();
+    ctx.strokeStyle = cs(r.color, r.alpha);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(r.x, r.y, r.r * 0.38, r.r, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function drawPointerTrail() {
+  if (!lastPointerPos) return;
+  ctx.save();
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = cs(COL_A, 1);
+  ctx.shadowColor = cs(COL_A, 1);
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(lastPointerPos.x, lastPointerPos.y, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawUI() {
+  // 染み込み度テキスト（中央下）
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.font = '12px Segoe UI';
+  ctx.textAlign = 'center';
+  const pct = Math.round(personB.infusion * 100);
+  ctx.fillText(`染み込み度: ${pct}%`, LW / 2, LH - 14);
+  ctx.restore();
+}
+
+// =============================================
+// メインループ
+// =============================================
+function loop() {
+  frame++;
+  updateParticles();
+  drawBG();
+  drawRipples();
+  drawPointerTrail();
+  drawPerson(personA, '人 A（発信者）', false);
+  drawPerson(personB, '人 B（受容者）', true);
+  drawParticles();
+  drawUI();
+  requestAnimationFrame(loop);
+}
+
+// =============================================
+// ステータステキスト
+// =============================================
+let statusTimeout;
+function updateStatus(msg) {
+  statusEl.textContent = msg;
+  clearTimeout(statusTimeout);
+  statusTimeout = setTimeout(() => {
+    statusEl.textContent = '';
+  }, 3000);
+}
+
+// =============================================
+// ポインターイベント（マウス + タッチ統合）
+// =============================================
+function handlePointerDown(e) {
+  e.preventDefault();
+  isPointerDown = true;
+  const touch = e.touches ? e.touches[0] : e;
+  const pos = toLogical(touch.clientX, touch.clientY);
+  lastPointerPos = pos;
+
+  // 人Aタップ → 感情の爆発
+  if (insideA(pos.x, pos.y)) {
+    spawnFromA(35, { speed: 2.5, jitter: 30, delay: 0 });
+    addRipple(personA.x, personA.y - 20, COL_A);
+    updateStatus('💥 感情が爆発した！');
+    return;
+  }
+
+  // 人Bタップ → 拒絶
+  if (insideB(pos.x, pos.y)) {
+    triggerRepel();
+    return;
+  }
+
+  // それ以外 → その場から粒子放出
+  for (let i = 0; i < 5; i++) spawnFromPoint(pos.x, pos.y);
+  updateStatus('✨ 粒子を送り込んだ');
+
+  // ヒントを隠す
+  hint.style.opacity = '0';
+}
+
+function handlePointerMove(e) {
+  e.preventDefault();
+  if (!isPointerDown) return;
+  const touch = e.touches ? e.touches[0] : e;
+  const pos = toLogical(touch.clientX, touch.clientY);
+  lastPointerPos = pos;
+
+  // ドラッグ中は連続生成（人物シルエット外のみ）
+  if (!insideA(pos.x, pos.y) && !insideB(pos.x, pos.y)) {
+    if (frame % 2 === 0) {
+      for (let i = 0; i < 3; i++) spawnFromPoint(pos.x, pos.y);
+    }
+  }
+}
+
+function handlePointerUp(e) {
+  e.preventDefault();
+  isPointerDown = false;
+  lastPointerPos = null;
+}
+
+canvas.addEventListener('mousedown',  handlePointerDown, { passive: false });
+canvas.addEventListener('mousemove',  handlePointerMove, { passive: false });
+canvas.addEventListener('mouseup',    handlePointerUp,   { passive: false });
+canvas.addEventListener('mouseleave', handlePointerUp,   { passive: false });
+canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+canvas.addEventListener('touchmove',  handlePointerMove, { passive: false });
+canvas.addEventListener('touchend',   handlePointerUp,   { passive: false });
+
+// =============================================
+// ボタン
+// =============================================
+document.getElementById('btnBurst').addEventListener('click', () => {
+  spawnFromA(50, { speed: 3, jitter: 35, delay: 0 });
+  addRipple(personA.x, personA.y - 20, COL_A);
+  updateStatus('💥 感情の爆発！大量の粒子が放出された');
+});
+
+document.getElementById('btnRepel').addEventListener('click', () => {
+  triggerRepel();
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  particles = [];
+  repelParticles = [];
+  ripples = [];
+  absorbedTotal = 0;
+  frame = 0;
+  personB.color    = { ...COL_B };
+  personB.infusion = 0;
+  personB.repelling = 0;
+  hint.style.opacity = '1';
+  updateStatus('↺ リセットしました');
+});
+
+document.getElementById('speedSlider').addEventListener('input', e => {
+  speedMult = parseFloat(e.target.value);
+  updateStatus(`速度: ${speedMult.toFixed(1)}x`);
+});
+
+// =============================================
+// 起動
+// =============================================
+loop();
+</script>
 </body>
 </html>
