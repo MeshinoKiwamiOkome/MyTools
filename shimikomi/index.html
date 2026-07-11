@@ -1,202 +1,261 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no"/>
   <title>人に人が染み込む</title>
   <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
 
-    body {
-      background: #0a0a18;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100dvh;
-      font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
-      color: #ccc;
-      overflow-x: hidden;
-      padding: 10px 8px 28px;
-      touch-action: none;
-      user-select: none;
-      -webkit-user-select: none;
+    :root{
+      --bg:#0a0a18;
+      --panel:rgba(255,255,255,0.04);
+      --border:rgba(255,255,255,0.1);
+      --text:rgba(255,255,255,0.55);
+      --accent-a:rgba(80,150,255,0.8);
+      --accent-b:rgba(255,90,110,0.8);
     }
 
-    h1 {
-      font-size: clamp(0.8rem, 3vw, 1.05rem);
-      letter-spacing: 0.2em;
-      margin-bottom: 8px;
-      opacity: 0.55;
+    html,body{
+      width:100%;height:100%;
+      background:var(--bg);
+      color:#ccc;
+      font-family:'Segoe UI','Helvetica Neue',sans-serif;
+      overflow-x:hidden;
+      touch-action:none;
+      user-select:none;
+      -webkit-user-select:none;
     }
 
-    /* ---- キャンバス ---- */
-    #canvas-wrap {
-      position: relative;
-      width: 100%;
-      max-width: 740px;
-    }
-    canvas {
-      display: block;
-      width: 100%;
-      height: auto;
-      border-radius: 14px;
-      box-shadow: 0 0 50px rgba(80,140,255,0.18);
-      touch-action: none;
+    body{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:8px 6px 16px;
+      gap:8px;
+      min-height:100dvh;
     }
 
-    /* ヒント */
-    #hint {
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      color: rgba(255,255,255,0.55);
-      font-size: clamp(0.62rem, 2vw, 0.76rem);
-      padding: 5px 14px;
-      border-radius: 20px;
-      pointer-events: none;
-      white-space: nowrap;
-      transition: opacity 0.6s;
+    /* ===== タイトル ===== */
+    h1{
+      font-size:clamp(0.78rem,2.8vw,1rem);
+      letter-spacing:.18em;
+      opacity:.5;
+      flex-shrink:0;
     }
 
-    /* ---- コントロール全体 ---- */
-    #controls {
-      width: 100%;
-      max-width: 740px;
-      margin-top: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+    /* ===== キャンバスラッパー ===== */
+    #canvas-wrap{
+      position:relative;
+      width:100%;
+      max-width:740px;
+      flex-shrink:0;
+    }
+    canvas{
+      display:block;
+      width:100%;
+      height:auto;
+      border-radius:12px;
+      box-shadow:0 0 40px rgba(80,140,255,0.15);
+      touch-action:none;
+      cursor:crosshair;
+    }
+    #hint{
+      position:absolute;
+      bottom:8px;left:50%;
+      transform:translateX(-50%);
+      background:rgba(0,0,0,0.6);
+      color:rgba(255,255,255,0.5);
+      font-size:clamp(0.6rem,1.9vw,0.72rem);
+      padding:4px 12px;
+      border-radius:16px;
+      pointer-events:none;
+      white-space:nowrap;
+      transition:opacity .5s;
     }
 
-    .ctrl-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-      align-items: center;
+    /* ===== アップロードエリア ===== */
+    #upload-row{
+      display:flex;
+      gap:8px;
+      width:100%;
+      max-width:740px;
+      flex-shrink:0;
+    }
+    .upload-card{
+      flex:1;
+      background:var(--panel);
+      border:1px dashed var(--border);
+      border-radius:10px;
+      padding:8px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:5px;
+      cursor:pointer;
+      transition:background .2s;
+      -webkit-tap-highlight-color:transparent;
+      min-height:64px;
+      justify-content:center;
+    }
+    .upload-card:hover{background:rgba(255,255,255,0.07);}
+    .upload-card input[type=file]{display:none;}
+    .upload-card .card-label{
+      font-size:clamp(0.65rem,2.1vw,0.78rem);
+      opacity:.6;
+      text-align:center;
+      line-height:1.3;
+    }
+    .upload-card .card-title{
+      font-size:clamp(0.7rem,2.3vw,0.82rem);
+      font-weight:bold;
+      letter-spacing:.06em;
+    }
+    .card-a .card-title{color:var(--accent-a);}
+    .card-b .card-title{color:var(--accent-b);}
+    .upload-card .thumb{
+      width:36px;height:36px;
+      border-radius:50%;
+      object-fit:cover;
+      border:2px solid rgba(255,255,255,0.2);
+      display:none;
+    }
+    .upload-card .thumb.visible{display:block;}
+    .upload-card .icon{font-size:1.4rem;line-height:1;}
+
+    /* ===== アコーディオン式コントロール ===== */
+    #ctrl-wrap{
+      width:100%;
+      max-width:740px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      flex-shrink:0;
+    }
+    .accordion{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:10px;
+      overflow:hidden;
+    }
+    .accordion-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:9px 14px;
+      cursor:pointer;
+      font-size:clamp(0.7rem,2.2vw,0.8rem);
+      color:rgba(255,255,255,0.5);
+      letter-spacing:.08em;
+      -webkit-tap-highlight-color:transparent;
+      min-height:44px;
+    }
+    .accordion-header .arrow{
+      transition:transform .25s;
+      font-style:normal;
+      font-size:.7rem;
+    }
+    .accordion.open .accordion-header .arrow{transform:rotate(180deg);}
+    .accordion-body{
+      display:none;
+      padding:8px 10px 12px;
+      border-top:1px solid var(--border);
+    }
+    .accordion.open .accordion-body{display:block;}
+
+    /* ===== ボタン共通 ===== */
+    .ctrl-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:7px;
+      justify-content:center;
+      align-items:center;
+    }
+    .btn{
+      padding:9px 16px;
+      background:transparent;
+      border-radius:20px;
+      cursor:pointer;
+      font-size:clamp(0.72rem,2.4vw,0.84rem);
+      letter-spacing:.06em;
+      transition:background .2s,transform .1s;
+      -webkit-tap-highlight-color:transparent;
+      min-height:44px;
+      min-width:44px;
+      white-space:nowrap;
+    }
+    .btn:active{transform:scale(.94);}
+    .btn-blue {border:1px solid rgba(100,180,255,.45);color:#aad4ff;}
+    .btn-blue:hover {background:rgba(100,160,255,.15);}
+    .btn-red  {border:1px solid rgba(255,120,120,.45);color:#ffaaaa;}
+    .btn-red:hover  {background:rgba(255,100,100,.15);}
+    .btn-gold {border:1px solid rgba(255,200,80,.45); color:#ffe090;}
+    .btn-gold:hover {background:rgba(255,200,80,.12);}
+    .btn-green{border:1px solid rgba(100,220,140,.45);color:#a0f0b8;}
+    .btn-green:hover{background:rgba(100,220,140,.12);}
+    .btn.active{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.5);color:#fff;}
+
+    /* 速度ボタン */
+    .spd-btn{
+      width:52px;height:40px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.2);
+      background:transparent;
+      color:rgba(255,255,255,.5);
+      font-size:.78rem;
+      cursor:pointer;
+      transition:background .2s,color .2s;
+      -webkit-tap-highlight-color:transparent;
+      min-height:44px;
+    }
+    .spd-btn.active{
+      background:rgba(120,180,255,.25);
+      border-color:rgba(120,180,255,.6);
+      color:#aad4ff;
+    }
+    input[type=range]{
+      -webkit-appearance:none;
+      width:clamp(90px,25vw,150px);
+      height:4px;
+      border-radius:2px;
+      background:rgba(255,255,255,.15);
+      outline:none;
+      cursor:pointer;
+    }
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;
+      width:24px;height:24px;
+      border-radius:50%;
+      background:#7ab4ff;
+      cursor:pointer;
+      box-shadow:0 0 6px rgba(120,180,255,.5);
+    }
+    input[type=range]::-moz-range-thumb{
+      width:24px;height:24px;
+      border-radius:50%;
+      background:#7ab4ff;
+      border:none;
+      cursor:pointer;
     }
 
-    /* ---- ボタン共通 ---- */
-    .btn {
-      padding: 10px 18px;
-      background: transparent;
-      border-radius: 22px;
-      cursor: pointer;
-      font-size: clamp(0.75rem, 2.6vw, 0.88rem);
-      letter-spacing: 0.07em;
-      transition: background 0.22s, transform 0.1s, opacity 0.2s;
-      -webkit-tap-highlight-color: transparent;
-      min-height: 44px; /* タッチターゲット確保 */
-      min-width: 44px;
-    }
-    .btn:active { transform: scale(0.94); }
-
-    .btn-blue  { border: 1px solid rgba(100,180,255,0.45); color: #aad4ff; }
-    .btn-blue:hover  { background: rgba(100,160,255,0.15); }
-    .btn-red   { border: 1px solid rgba(255,120,120,0.45); color: #ffaaaa; }
-    .btn-red:hover   { background: rgba(255,100,100,0.15); }
-    .btn-gold  { border: 1px solid rgba(255,200,80,0.45);  color: #ffe090; }
-    .btn-gold:hover  { background: rgba(255,200,80,0.12); }
-    .btn-green { border: 1px solid rgba(100,220,140,0.45); color: #a0f0b8; }
-    .btn-green:hover { background: rgba(100,220,140,0.12); }
-
-    /* アクティブ状態（方向ボタン） */
-    .btn.active {
-      background: rgba(255,255,255,0.12);
-      border-color: rgba(255,255,255,0.5);
-      color: #fff;
+    /* 方向ラベル */
+    #dirLabel{
+      font-size:clamp(0.68rem,2.1vw,0.78rem);
+      opacity:.55;
+      letter-spacing:.08em;
+      text-align:center;
+      margin-top:4px;
     }
 
-    /* ---- 速度コントロール（スマホ対応） ---- */
-    .speed-wrap {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 24px;
-      padding: 6px 14px;
-    }
-    .speed-label {
-      font-size: clamp(0.7rem, 2.2vw, 0.8rem);
-      color: rgba(255,255,255,0.45);
-      white-space: nowrap;
-    }
-    /* 速度ボタン群 */
-    .speed-btns {
-      display: flex;
-      gap: 4px;
-    }
-    .spd-btn {
-      width: 44px;
-      height: 36px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: transparent;
-      color: rgba(255,255,255,0.5);
-      font-size: 0.78rem;
-      cursor: pointer;
-      transition: background 0.2s, color 0.2s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .spd-btn.active {
-      background: rgba(120,180,255,0.25);
-      border-color: rgba(120,180,255,0.6);
-      color: #aad4ff;
-    }
-    /* スライダー（補助） */
-    input[type=range] {
-      -webkit-appearance: none;
-      width: clamp(80px, 22vw, 140px);
-      height: 4px;
-      border-radius: 2px;
-      background: rgba(255,255,255,0.15);
-      outline: none;
-      cursor: pointer;
-    }
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 22px; height: 22px;
-      border-radius: 50%;
-      background: #7ab4ff;
-      cursor: pointer;
-      box-shadow: 0 0 6px rgba(120,180,255,0.5);
-    }
-    input[type=range]::-moz-range-thumb {
-      width: 22px; height: 22px;
-      border-radius: 50%;
-      background: #7ab4ff;
-      cursor: pointer;
-      border: none;
-    }
-
-    /* ---- ステータス ---- */
-    #statusText {
-      text-align: center;
-      font-size: clamp(0.7rem, 2.2vw, 0.82rem);
-      opacity: 0.45;
-      letter-spacing: 0.08em;
-      min-height: 1.3em;
-      transition: opacity 0.4s;
-    }
-
-    /* ---- 方向インジケーター ---- */
-    #dirLabel {
-      font-size: clamp(0.72rem, 2.3vw, 0.84rem);
-      opacity: 0.6;
-      letter-spacing: 0.1em;
-    }
-
-    /* セクション区切りラベル */
-    .ctrl-section-label {
-      width: 100%;
-      text-align: center;
-      font-size: clamp(0.62rem, 1.9vw, 0.72rem);
-      color: rgba(255,255,255,0.25);
-      letter-spacing: 0.12em;
-      margin-bottom: -4px;
+    /* ステータス */
+    #statusText{
+      font-size:clamp(0.68rem,2.1vw,0.78rem);
+      opacity:.4;
+      letter-spacing:.08em;
+      min-height:1.3em;
+      text-align:center;
+      transition:opacity .4s;
+      flex-shrink:0;
     }
   </style>
 </head>
@@ -204,43 +263,76 @@
 
 <h1>人に人が染み込む</h1>
 
+<!-- キャンバス -->
 <div id="canvas-wrap">
   <canvas id="canvas"></canvas>
   <div id="hint">👆 タップで粒子を送る ／ 人物をドラッグで移動</div>
 </div>
 
-<div id="controls">
+<!-- 写真アップロード -->
+<div id="upload-row">
+  <label class="upload-card card-a">
+    <input type="file" id="fileA" accept="image/*"/>
+    <span class="icon">🧑</span>
+    <span class="card-title">人 A</span>
+    <span class="card-label">タップして写真を選択</span>
+    <img class="thumb" id="thumbA" alt="A"/>
+  </label>
+  <label class="upload-card card-b">
+    <input type="file" id="fileB" accept="image/*"/>
+    <span class="icon">🧑</span>
+    <span class="card-title">人 B</span>
+    <span class="card-label">タップして写真を選択</span>
+    <img class="thumb" id="thumbB" alt="B"/>
+  </label>
+</div>
 
-  <!-- 方向切替 -->
-  <div class="ctrl-section-label">▼ 染み込みの方向</div>
-  <div class="ctrl-row">
-    <button class="btn btn-blue active" id="dirAB">A → B</button>
-    <button class="btn btn-green"       id="dirBA">B → A</button>
-    <button class="btn btn-gold"        id="dirBoth">A ⇄ B（双方向）</button>
-    <span id="dirLabel">A から B へ染み込み中</span>
+<!-- コントロール（アコーディオン） -->
+<div id="ctrl-wrap">
+
+  <!-- 方向 -->
+  <div class="accordion open" id="acc-dir">
+    <div class="accordion-header" onclick="toggleAcc('acc-dir')">
+      <span>🔀 染み込みの方向</span><i class="arrow">▲</i>
+    </div>
+    <div class="accordion-body">
+      <div class="ctrl-row">
+        <button class="btn btn-blue active" id="dirAB">A → B</button>
+        <button class="btn btn-green"       id="dirBA">B → A</button>
+        <button class="btn btn-gold"        id="dirBoth">A ⇄ B</button>
+      </div>
+      <div id="dirLabel">A から B へ染み込み中</div>
+    </div>
   </div>
 
   <!-- アクション -->
-  <div class="ctrl-section-label">▼ アクション</div>
-  <div class="ctrl-row">
-    <button class="btn btn-blue"  id="btnBurstA">💥 A が爆発</button>
-    <button class="btn btn-green" id="btnBurstB">💥 B が爆発</button>
-    <button class="btn btn-gold"  id="btnRepel">🛡 受容者が拒絶</button>
-    <button class="btn btn-red"   id="btnReset">↺ リセット</button>
+  <div class="accordion open" id="acc-act">
+    <div class="accordion-header" onclick="toggleAcc('acc-act')">
+      <span>⚡ アクション</span><i class="arrow">▲</i>
+    </div>
+    <div class="accordion-body">
+      <div class="ctrl-row">
+        <button class="btn btn-blue"  id="btnBurstA">💥 A が爆発</button>
+        <button class="btn btn-green" id="btnBurstB">💥 B が爆発</button>
+        <button class="btn btn-gold"  id="btnRepel">🛡 受容者が拒絶</button>
+        <button class="btn btn-red"   id="btnReset">↺ リセット</button>
+      </div>
+    </div>
   </div>
 
   <!-- 速度 -->
-  <div class="ctrl-section-label">▼ 染み込み速度</div>
-  <div class="ctrl-row">
-    <div class="speed-wrap">
-      <span class="speed-label">速度</span>
-      <div class="speed-btns">
+  <div class="accordion open" id="acc-spd">
+    <div class="accordion-header" onclick="toggleAcc('acc-spd')">
+      <span>⏩ 染み込み速度</span><i class="arrow">▲</i>
+    </div>
+    <div class="accordion-body">
+      <div class="ctrl-row">
         <button class="spd-btn" data-v="1">遅</button>
         <button class="spd-btn active" data-v="2">中</button>
         <button class="spd-btn" data-v="3.5">速</button>
         <button class="spd-btn" data-v="5">爆速</button>
+        <input type="range" id="speedSlider" min="1" max="5" value="2" step="0.5"/>
       </div>
-      <input type="range" id="speedSlider" min="1" max="5" value="2" step="0.5" />
     </div>
   </div>
 
@@ -248,9 +340,10 @@
 
 <div id="statusText">人物をドラッグして位置を変えられます</div>
 
+<!-- ===== JavaScript ===== -->
 <script>
 // =============================================
-// MIT License – Human Seeping Into Human v3
+// MIT License – Human Seeping Into Human v4
 // =============================================
 
 const canvas   = document.getElementById('canvas');
@@ -259,290 +352,466 @@ const hintEl   = document.getElementById('hint');
 const statusEl = document.getElementById('statusText');
 const dirLabel = document.getElementById('dirLabel');
 
-// 論理サイズ
-const LW = 740, LH = 460;
+const LW = 740, LH = 440;
 canvas.width  = LW;
 canvas.height = LH;
 
 // =============================================
-// 色定義
+// アコーディオン
+// =============================================
+function toggleAcc(id){
+  document.getElementById(id).classList.toggle('open');
+}
+
+// =============================================
+// 色
 // =============================================
 const COL = {
-  A: { r: 80,  g: 150, b: 255 },
-  B: { r: 255, g: 90,  b: 110 },
+  A:{ r:80,  g:150, b:255 },
+  B:{ r:255, g:90,  b:110 },
 };
 
 // =============================================
-// 人物オブジェクト
+// 画像管理
 // =============================================
-function makePerson(id, x, y, baseCol) {
-  return {
-    id, x, y,
-    color:     { ...baseCol },
-    baseColor: { ...baseCol },
-    infusion:  0,
-    repelling: 0,
-    dragging:  false,
+const images = { A: null, B: null };
+
+function loadImage(id, file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      images[id] = img;
+      const thumb = document.getElementById('thumb'+id);
+      thumb.src = e.target.result;
+      thumb.classList.add('visible');
+      // アイコン非表示
+      thumb.closest('.upload-card').querySelector('.icon').style.display='none';
+      updateStatus(`人 ${id} の写真を設定しました`);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('fileA').addEventListener('change', e=>{
+  if(e.target.files[0]) loadImage('A', e.target.files[0]);
+});
+document.getElementById('fileB').addEventListener('change', e=>{
+  if(e.target.files[0]) loadImage('B', e.target.files[0]);
+});
+
+// =============================================
+// 人物
+// =============================================
+function makePerson(id, x, y, baseCol){
+  return { id, x, y,
+    color:    {...baseCol},
+    baseColor:{...baseCol},
+    infusion: 0,
+    repelling:0,
+    dragging: false,
   };
 }
-let pA = makePerson('A', 180, 240, COL.A);
-let pB = makePerson('B', 560, 240, COL.B);
+let pA = makePerson('A', 185, 230, COL.A);
+let pB = makePerson('B', 555, 230, COL.B);
 
 // =============================================
-// 方向設定  'AB' | 'BA' | 'BOTH'
+// 方向
 // =============================================
 let flowDir = 'AB';
-
-function getSender()   { return flowDir === 'BA' ? pB : pA; }
-function getReceiver() { return flowDir === 'BA' ? pA : pB; }
+function getSender()  { return flowDir==='BA' ? pB : pA; }
+function getReceiver(){ return flowDir==='BA' ? pA : pB; }
 
 // =============================================
 // パーティクル
 // =============================================
-let particles     = [];
+let particles      = [];
 let repelParticles = [];
-let ripples       = [];
-let absorbedA = 0; // Bに染み込んだ数
-let absorbedB = 0; // Aに染み込んだ数
+let ripples        = [];
+let absorbedA = 0, absorbedB = 0;
 const MAX_ABSORB = 240;
-
 let speedMult = 2;
 let frame = 0;
 
 // =============================================
 // ユーティリティ
 // =============================================
-function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
-function lerpColor(c1, c2, t) {
+function lerp(a,b,t){ return a+(b-a)*Math.max(0,Math.min(1,t)); }
+function lerpColor(c1,c2,t){
   return {
-    r: Math.round(lerp(c1.r, c2.r, t)),
-    g: Math.round(lerp(c1.g, c2.g, t)),
-    b: Math.round(lerp(c1.b, c2.b, t)),
+    r:Math.round(lerp(c1.r,c2.r,t)),
+    g:Math.round(lerp(c1.g,c2.g,t)),
+    b:Math.round(lerp(c1.b,c2.b,t)),
   };
 }
-function cs(c, a = 1) { return `rgba(${c.r},${c.g},${c.b},${a})`; }
-function dist2(x1,y1,x2,y2) {
-  const dx=x2-x1, dy=y2-y1; return Math.sqrt(dx*dx+dy*dy);
+function cs(c,a=1){ return `rgba(${c.r},${c.g},${c.b},${a})`; }
+function dist2(x1,y1,x2,y2){
+  const dx=x2-x1,dy=y2-y1; return Math.sqrt(dx*dx+dy*dy);
 }
-
-// キャンバス座標変換
-function toLogical(clientX, clientY) {
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: (clientX - rect.left)  * (LW / rect.width),
-    y: (clientY - rect.top)   * (LH / rect.height),
-  };
+function toLogical(cx,cy){
+  const r=canvas.getBoundingClientRect();
+  return { x:(cx-r.left)*(LW/r.width), y:(cy-r.top)*(LH/r.height) };
 }
 
 // =============================================
-// 人型パス
+// 人型パス（頭+胴+足）
 // =============================================
-function buildHumanPath(cx, cy) {
+// 頭の中心: (cx, cy-92)  半径28
+// 胴: cy-62 〜 cy+12
+// 足: cy+12 〜 cy+120
+const HEAD_R   = 28;
+const BODY_W   = 38;
+const BODY_TOP = -62;
+const BODY_BOT = 12;
+const LEG_BOT  = 120;
+const LEG_W    = 18;
+
+function buildHumanPath(cx, cy){
   ctx.save();
   ctx.translate(cx, cy);
   ctx.beginPath();
-  ctx.arc(0, -92, 28, 0, Math.PI * 2);
-  ctx.moveTo(-30, -62);
-  ctx.bezierCurveTo(-42,-30,-40,0,-36,12);
-  ctx.lineTo(-22,12); ctx.lineTo(-18,56); ctx.lineTo(18,56);
-  ctx.lineTo(22,12);  ctx.lineTo(36,12);
-  ctx.bezierCurveTo(40,0,42,-30,30,-62);
+  // 頭
+  ctx.arc(0, -92, HEAD_R, 0, Math.PI*2);
+  // 胴体
+  ctx.moveTo(-BODY_W, BODY_TOP);
+  ctx.bezierCurveTo(-44,-30,-42,0,-38,BODY_BOT);
+  ctx.lineTo(-LEG_W, BODY_BOT);
+  ctx.lineTo(-LEG_W+4, 56);
+  ctx.lineTo(LEG_W-4, 56);
+  ctx.lineTo(LEG_W, BODY_BOT);
+  ctx.lineTo(38, BODY_BOT);
+  ctx.bezierCurveTo(42,0,44,-30,BODY_W,BODY_TOP);
   ctx.closePath();
-  ctx.moveTo(-18,56); ctx.lineTo(-26,120); ctx.lineTo(-8,120); ctx.lineTo(-2,56); ctx.closePath();
-  ctx.moveTo(2,56);   ctx.lineTo(8,120);  ctx.lineTo(26,120); ctx.lineTo(18,56);  ctx.closePath();
+  // 左足
+  ctx.moveTo(-LEG_W, BODY_BOT);
+  ctx.lineTo(-26, LEG_BOT);
+  ctx.lineTo(-8,  LEG_BOT);
+  ctx.lineTo(-LEG_W+4, 56);
+  ctx.closePath();
+  // 右足
+  ctx.moveTo(LEG_W-4, 56);
+  ctx.lineTo(8,  LEG_BOT);
+  ctx.lineTo(26, LEG_BOT);
+  ctx.lineTo(LEG_W, BODY_BOT);
+  ctx.closePath();
   ctx.restore();
 }
 
 // シルエット内判定（楕円近似）
-function insidePerson(p, x, y) {
-  const dx = x - p.x, dy = y - (p.y - 20);
-  return (dx*dx)/(46*46) + (dy*dy)/(112*112) < 1;
+function insidePerson(p, x, y){
+  const dx=x-p.x, dy=y-(p.y-20);
+  return (dx*dx)/(48*48)+(dy*dy)/(115*115)<1;
+}
+
+// =============================================
+// 写真をシルエット内に描画（クリッピング）
+// =============================================
+function drawPersonImage(person, img, alpha=1){
+  if(!img) return;
+  ctx.save();
+  // クリップ領域をシルエットに設定
+  buildHumanPath(person.x, person.y);
+  ctx.clip();
+  ctx.globalAlpha = alpha;
+
+  // シルエット全体を覆う矩形にアスペクト比を保ってカバー
+  const sw = 100, sh = 230; // シルエットの概算サイズ
+  const bx = person.x - sw/2;
+  const by = person.y - 92 - HEAD_R;
+  const bh = LEG_BOT + HEAD_R + 28;
+  const bw = sw;
+
+  const ir = img.width / img.height;
+  const br = bw / bh;
+  let dw, dh, dx, dy;
+  if(ir > br){
+    dh = bh; dw = dh * ir;
+    dx = bx - (dw-bw)/2; dy = by;
+  } else {
+    dw = bw; dh = dw / ir;
+    dx = bx; dy = by - (dh-bh)/2;
+  }
+  ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.restore();
+}
+
+// =============================================
+// モーフィング描画（染み込み合成）
+// =============================================
+function drawPersonMorph(person){
+  const isB = person.id === 'B';
+  const inf  = person.infusion;           // 0→1
+  const srcId   = isB ? 'A' : 'B';       // 染み込んでくる側
+  const ownId   = person.id;
+  const imgOwn  = images[ownId];
+  const imgSrc  = images[srcId];
+  const colOwn  = person.baseColor;
+  const colSrc  = isB ? COL.A : COL.B;
+
+  ctx.save();
+
+  // --- 1. グロー ---
+  ctx.shadowColor = cs(person.color, 1);
+  ctx.shadowBlur  = 18 + inf * 28;
+
+  // --- 2. ベース（自分の色 or 写真） ---
+  if(imgOwn){
+    // 自分の写真をシルエット内に描画
+    buildHumanPath(person.x, person.y);
+    ctx.fillStyle = cs(colOwn, 0.25);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    drawPersonImage(person, imgOwn, 1);
+  } else {
+    // 写真なし → グラデーション塗り
+    const grad = ctx.createRadialGradient(
+      person.x, person.y-20, 4,
+      person.x, person.y-20, 118
+    );
+    grad.addColorStop(0, cs(colOwn, 0.95));
+    grad.addColorStop(1, cs(colOwn, 0.42));
+    ctx.fillStyle = grad;
+    buildHumanPath(person.x, person.y);
+    ctx.fill();
+  }
+
+  ctx.shadowBlur = 0;
+
+  // --- 3. 染み込み層（相手の色 or 写真を inf に応じてオーバーレイ） ---
+  if(inf > 0.01){
+    ctx.save();
+    buildHumanPath(person.x, person.y);
+    ctx.clip();
+
+    if(imgSrc){
+      // 相手の写真を半透明でオーバーレイ（モーフィング）
+      ctx.globalAlpha = inf * 0.82;
+      ctx.globalCompositeOperation = 'source-over';
+
+      const sw=100, bx=person.x-50;
+      const by=person.y-92-HEAD_R;
+      const bh=LEG_BOT+HEAD_R+28, bw=sw;
+      const ir=imgSrc.width/imgSrc.height, br=bw/bh;
+      let dw,dh,dx,dy;
+      if(ir>br){ dh=bh;dw=dh*ir;dx=bx-(dw-bw)/2;dy=by; }
+      else      { dw=bw;dh=dw/ir;dx=bx;dy=by-(dh-bh)/2; }
+      ctx.drawImage(imgSrc, dx, dy, dw, dh);
+
+      // 色相シフトオーバーレイ（写真だけだと色変化が分かりにくいため補助）
+      ctx.globalCompositeOperation = 'color';
+      ctx.globalAlpha = inf * 0.45;
+      ctx.fillStyle = cs(colSrc, 1);
+      ctx.fillRect(person.x-60, person.y-130, 120, 270);
+    } else {
+      // 写真なし → 相手の色でオーバーレイ
+      ctx.globalAlpha = inf * 0.78;
+      ctx.globalCompositeOperation = 'source-over';
+      const grad2 = ctx.createRadialGradient(
+        person.x, person.y-20, 4,
+        person.x, person.y-20, 118
+      );
+      grad2.addColorStop(0, cs(colSrc, 0.9));
+      grad2.addColorStop(1, cs(colSrc, 0.35));
+      ctx.fillStyle = grad2;
+      ctx.fillRect(person.x-60, person.y-130, 120, 270);
+    }
+    ctx.restore();
+  }
+
+  // --- 4. 輪郭線 ---
+  ctx.strokeStyle = cs(person.color, 0.55);
+  ctx.lineWidth   = 1.8;
+  buildHumanPath(person.x, person.y);
+  ctx.stroke();
+
+  // --- 5. 拒絶シールド ---
+  if(person.repelling > 0){
+    const prog = person.repelling/65;
+    ctx.save();
+    ctx.strokeStyle = cs(person.baseColor, prog*0.85);
+    ctx.lineWidth   = 3;
+    ctx.shadowColor = cs(person.baseColor, prog);
+    ctx.shadowBlur  = 22;
+    ctx.beginPath();
+    ctx.ellipse(person.x, person.y-20, 60, 120, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // --- 6. ドラッグハイライト ---
+  if(person.dragging){
+    ctx.save();
+    ctx.strokeStyle='rgba(255,255,255,0.35)';
+    ctx.lineWidth=2;
+    ctx.setLineDash([5,5]);
+    ctx.beginPath();
+    ctx.ellipse(person.x, person.y-20, 60, 120, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // --- 7. ラベル ---
+  ctx.fillStyle = cs(person.color, 0.75);
+  ctx.font = 'bold 13px Segoe UI';
+  ctx.textAlign = 'center';
+  const name = images[person.id] ? `人 ${person.id}` : `人 ${person.id}`;
+  ctx.fillText(name, person.x, person.y+160);
+
+  // --- 8. 染み込みバー ---
+  const absorbed = person.id==='B' ? absorbedA : absorbedB;
+  const t = absorbed/MAX_ABSORB;
+  const bw2=90, bh2=7;
+  const bx2=person.x-bw2/2, by2=person.y+172;
+  ctx.fillStyle='rgba(255,255,255,0.07)';
+  ctx.beginPath(); ctx.roundRect(bx2,by2,bw2,bh2,4); ctx.fill();
+  const barCol = person.id==='B'
+    ? lerpColor(COL.B,COL.A,t)
+    : lerpColor(COL.A,COL.B,t);
+  ctx.fillStyle=cs(barCol,0.88);
+  ctx.beginPath(); ctx.roundRect(bx2,by2,bw2*t,bh2,4); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.38)';
+  ctx.font='11px Segoe UI';
+  ctx.fillText(`${Math.round(t*100)}%`, person.x, by2+bh2+14);
+
+  ctx.restore();
 }
 
 // =============================================
 // パーティクル生成
 // =============================================
-function spawnParticle(fromX, fromY, sender, receiver, opts = {}) {
+function spawnParticle(fx,fy,sender,receiver,opts={}){
   particles.push({
-    x:    fromX + (Math.random()-0.5)*(opts.jitter??18),
-    y:    fromY + (Math.random()-0.5)*(opts.jitter??18),
-    vx:   (Math.random()-0.5)*1.2,
-    vy:   (Math.random()-0.5)*1.2,
-    size: opts.size ?? (2.5 + Math.random()*3),
-    alpha: 1,
-    color: { ...sender.color },
-    targetId: receiver.id,       // どちらに向かうか
-    state: 'flying',
-    seepProgress: 0,
-    wobble: Math.random()*Math.PI*2,
-    wobbleSpeed: 0.03 + Math.random()*0.04,
-    speed: (opts.speed ?? (1.4 + Math.random()*1.4)) * (speedMult/2),
-    delay: opts.delay ?? 0,
-    tjx: (Math.random()-0.5)*55,
-    tjy: (Math.random()-0.5)*95,
+    x:   fx+(Math.random()-.5)*(opts.jitter??18),
+    y:   fy+(Math.random()-.5)*(opts.jitter??18),
+    vx:  (Math.random()-.5)*1.2,
+    vy:  (Math.random()-.5)*1.2,
+    size:opts.size??(2.5+Math.random()*3),
+    alpha:1,
+    color:{...sender.color},
+    targetId:receiver.id,
+    state:'flying',
+    seepProgress:0,
+    wobble:Math.random()*Math.PI*2,
+    wobbleSpeed:.03+Math.random()*.04,
+    speed:(opts.speed??(1.4+Math.random()*1.4))*(speedMult/2),
+    delay:opts.delay??0,
+    tjx:(Math.random()-.5)*55,
+    tjy:(Math.random()-.5)*95,
   });
 }
-
-function spawnFromPerson(person, receiver, count=1, opts={}) {
-  for (let i=0; i<count; i++) {
-    const angle = Math.random()*Math.PI*2;
-    const ox = Math.cos(angle)*36*Math.random();
-    const oy = Math.sin(angle)*100*Math.random() - 20;
-    spawnParticle(person.x+ox, person.y+oy, person, receiver, {
-      ...opts,
-      delay: opts.delay ?? Math.floor(Math.random()*30),
+function spawnFromPerson(person,receiver,count=1,opts={}){
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2;
+    const ox=Math.cos(a)*36*Math.random();
+    const oy=Math.sin(a)*100*Math.random()-20;
+    spawnParticle(person.x+ox,person.y+oy,person,receiver,{
+      ...opts, delay:opts.delay??Math.floor(Math.random()*30),
     });
   }
 }
-
-function spawnFromPoint(lx, ly, sender, receiver) {
-  spawnParticle(lx, ly, sender, receiver, { jitter:10, speed:2.0+Math.random(), delay:0 });
+function spawnFromPoint(lx,ly,sender,receiver){
+  spawnParticle(lx,ly,sender,receiver,{jitter:10,speed:2+Math.random(),delay:0});
 }
 
 // =============================================
-// 波紋
+// 波紋・拒絶
 // =============================================
-function addRipple(x, y, color) {
-  ripples.push({ x, y, r:8, alpha:0.7, color });
-}
+function addRipple(x,y,color){ ripples.push({x,y,r:8,alpha:.7,color}); }
 
-// =============================================
-// 拒絶
-// =============================================
-function triggerRepel() {
-  const receiver = getReceiver();
-  const sender   = getSender();
-  if (receiver.repelling > 0) return;
-  receiver.repelling = 65;
-
-  const absorbed = receiver.id==='B' ? absorbedA : absorbedB;
-  const repelCount = Math.floor(absorbed * 0.28);
-  for (let i=0; i<repelCount; i++) {
-    const angle = Math.random()*Math.PI*2;
-    const r = Math.random()*42;
+function triggerRepel(){
+  const receiver=getReceiver();
+  if(receiver.repelling>0) return;
+  receiver.repelling=65;
+  const absorbed=receiver.id==='B'?absorbedA:absorbedB;
+  const cnt=Math.floor(absorbed*.28);
+  for(let i=0;i<cnt;i++){
+    const a=Math.random()*Math.PI*2, r=Math.random()*42;
     repelParticles.push({
-      x:  receiver.x + Math.cos(angle)*r,
-      y:  (receiver.y-20) + Math.sin(angle)*r*0.8,
-      vx: Math.cos(angle)*(3+Math.random()*3),
-      vy: Math.sin(angle)*(3+Math.random()*3) - 2,
-      size: 2+Math.random()*2.5,
-      alpha: 0.9,
-      color: { ...receiver.color },
+      x:receiver.x+Math.cos(a)*r,
+      y:(receiver.y-20)+Math.sin(a)*r*.8,
+      vx:Math.cos(a)*(3+Math.random()*3),
+      vy:Math.sin(a)*(3+Math.random()*3)-2,
+      size:2+Math.random()*2.5, alpha:.9,
+      color:{...receiver.color},
     });
   }
-
-  const rollback = Math.min(receiver.infusion, 0.2);
-  receiver.infusion = Math.max(0, receiver.infusion - rollback);
-  if (receiver.id==='B') {
-    absorbedA = Math.floor(absorbedA*(1-rollback));
-    receiver.color = lerpColor(COL.B, COL.A, receiver.infusion*0.85);
+  const rb=Math.min(receiver.infusion,.2);
+  receiver.infusion=Math.max(0,receiver.infusion-rb);
+  if(receiver.id==='B'){
+    absorbedA=Math.floor(absorbedA*(1-rb));
+    receiver.color=lerpColor(COL.B,COL.A,receiver.infusion*.85);
   } else {
-    absorbedB = Math.floor(absorbedB*(1-rollback));
-    receiver.color = lerpColor(COL.A, COL.B, receiver.infusion*0.85);
+    absorbedB=Math.floor(absorbedB*(1-rb));
+    receiver.color=lerpColor(COL.A,COL.B,receiver.infusion*.85);
   }
-  addRipple(receiver.x, receiver.y-20, receiver.baseColor);
+  addRipple(receiver.x,receiver.y-20,receiver.baseColor);
   updateStatus('🛡 拒絶！ 染み込みが少し戻った...');
 }
 
 // =============================================
 // 更新
 // =============================================
-function updateParticles() {
-  const sp = speedMult / 2;
-
-  particles.forEach(p => {
-    if (p.delay > 0) { p.delay--; return; }
-    if (p.state === 'absorbed') return;
-
-    const receiver = p.targetId==='B' ? pB : pA;
-    const isRepelling = receiver.repelling > 0;
-
-    if (p.state === 'flying') {
-      const tx = receiver.x + p.tjx;
-      const ty = (receiver.y-20) + p.tjy;
-      const dx = tx-p.x, dy = ty-p.y;
-      const d  = Math.sqrt(dx*dx+dy*dy) || 1;
-
-      p.wobble += p.wobbleSpeed;
-      p.vx += (dx/d)*0.22*sp + Math.sin(p.wobble)*1.8*0.04;
-      p.vy += (dy/d)*0.22*sp + Math.cos(p.wobble*0.7)*1.2*0.04;
-
-      const spd = Math.sqrt(p.vx*p.vx+p.vy*p.vy);
-      if (spd > p.speed*sp) { p.vx=(p.vx/spd)*p.speed*sp; p.vy=(p.vy/spd)*p.speed*sp; }
-
-      // 拒絶中は弾かれる
-      if (isRepelling) {
-        const d2 = dist2(p.x,p.y,receiver.x,receiver.y-20);
-        if (d2 < 65) {
-          const ax=(p.x-receiver.x)/d2, ay=(p.y-(receiver.y-20))/d2;
-          p.vx += ax*2.8; p.vy += ay*2.8;
-        }
-      } else if (insidePerson(receiver, p.x, p.y)) {
-        p.state = 'seeping';
-        addRipple(p.x, p.y, p.color);
+function updateParticles(){
+  const sp=speedMult/2;
+  particles.forEach(p=>{
+    if(p.delay>0){p.delay--;return;}
+    if(p.state==='absorbed') return;
+    const receiver=p.targetId==='B'?pB:pA;
+    if(p.state==='flying'){
+      const tx=receiver.x+p.tjx, ty=(receiver.y-20)+p.tjy;
+      const dx=tx-p.x, dy=ty-p.y;
+      const d=Math.sqrt(dx*dx+dy*dy)||1;
+      p.wobble+=p.wobbleSpeed;
+      p.vx+=(dx/d)*.22*sp+Math.sin(p.wobble)*1.8*.04;
+      p.vy+=(dy/d)*.22*sp+Math.cos(p.wobble*.7)*1.2*.04;
+      const spd=Math.sqrt(p.vx*p.vx+p.vy*p.vy);
+      if(spd>p.speed*sp){p.vx=(p.vx/spd)*p.speed*sp;p.vy=(p.vy/spd)*p.speed*sp;}
+      if(receiver.repelling>0){
+        const d2=dist2(p.x,p.y,receiver.x,receiver.y-20);
+        if(d2<65){const ax=(p.x-receiver.x)/d2,ay=(p.y-(receiver.y-20))/d2;p.vx+=ax*2.8;p.vy+=ay*2.8;}
+      } else if(insidePerson(receiver,p.x,p.y)){
+        p.state='seeping'; addRipple(p.x,p.y,p.color);
       }
-
-      p.x += p.vx; p.y += p.vy;
+      p.x+=p.vx; p.y+=p.vy;
     }
-
-    if (p.state === 'seeping') {
-      const cx=receiver.x, cy=receiver.y-20;
-      p.x += (cx-p.x)*0.09*sp;
-      p.y += (cy-p.y)*0.09*sp;
-      p.size  *= 0.92;
-      p.alpha *= 0.94;
-      p.seepProgress += 0.05*sp;
-
-      if (p.seepProgress>=1 || p.size<0.25) {
-        p.state = 'absorbed';
-        if (receiver.id==='B') {
-          absorbedA = Math.min(absorbedA+1, MAX_ABSORB);
-          receiver.infusion = absorbedA/MAX_ABSORB;
-          receiver.color = lerpColor(COL.B, COL.A, receiver.infusion*0.85);
+    if(p.state==='seeping'){
+      const cx=receiver.x,cy=receiver.y-20;
+      p.x+=(cx-p.x)*.09*sp; p.y+=(cy-p.y)*.09*sp;
+      p.size*=.92; p.alpha*=.94; p.seepProgress+=.05*sp;
+      if(p.seepProgress>=1||p.size<.25){
+        p.state='absorbed';
+        if(receiver.id==='B'){
+          absorbedA=Math.min(absorbedA+1,MAX_ABSORB);
+          receiver.infusion=absorbedA/MAX_ABSORB;
+          receiver.color=lerpColor(COL.B,COL.A,receiver.infusion*.85);
         } else {
-          absorbedB = Math.min(absorbedB+1, MAX_ABSORB);
-          receiver.infusion = absorbedB/MAX_ABSORB;
-          receiver.color = lerpColor(COL.A, COL.B, receiver.infusion*0.85);
+          absorbedB=Math.min(absorbedB+1,MAX_ABSORB);
+          receiver.infusion=absorbedB/MAX_ABSORB;
+          receiver.color=lerpColor(COL.A,COL.B,receiver.infusion*.85);
         }
-        if (receiver.infusion >= 1) updateStatus('✨ 完全に染み込んだ...');
+        if(receiver.infusion>=1) updateStatus('✨ 完全に染み込んだ...');
       }
     }
   });
-
-  // 拒絶パーティクル
-  repelParticles = repelParticles.filter(p=>p.alpha>0.02);
-  repelParticles.forEach(p => {
-    p.x+=p.vx; p.y+=p.vy; p.vy+=0.13;
-    p.alpha*=0.93; p.size*=0.97;
-  });
-
-  // 波紋
-  ripples = ripples.filter(r=>r.alpha>0.01);
-  ripples.forEach(r => { r.r+=2.8; r.alpha*=0.91; });
-
-  // 拒絶カウントダウン
-  if (pA.repelling>0) pA.repelling--;
-  if (pB.repelling>0) pB.repelling--;
-
-  // 自動生成
-  if (frame%6===0) {
-    if (flowDir==='AB' || flowDir==='BOTH') {
-      if (absorbedA<MAX_ABSORB) spawnFromPerson(pA, pB, 1, {delay:0});
-    }
-    if (flowDir==='BA' || flowDir==='BOTH') {
-      if (absorbedB<MAX_ABSORB) spawnFromPerson(pB, pA, 1, {delay:0});
-    }
+  repelParticles=repelParticles.filter(p=>p.alpha>.02);
+  repelParticles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.13;p.alpha*=.93;p.size*=.97;});
+  ripples=ripples.filter(r=>r.alpha>.01);
+  ripples.forEach(r=>{r.r+=2.8;r.alpha*=.91;});
+  if(pA.repelling>0) pA.repelling--;
+  if(pB.repelling>0) pB.repelling--;
+  if(frame%6===0){
+    if((flowDir==='AB'||flowDir==='BOTH')&&absorbedA<MAX_ABSORB) spawnFromPerson(pA,pB,1,{delay:0});
+    if((flowDir==='BA'||flowDir==='BOTH')&&absorbedB<MAX_ABSORB) spawnFromPerson(pB,pA,1,{delay:0});
   }
-
-  // 不要除去
-  if (frame%200===0) particles = particles.filter(p=>p.state!=='absorbed');
+  if(frame%200===0) particles=particles.filter(p=>p.state!=='absorbed');
 }
 
 // =============================================
 // 描画
 // =============================================
-function drawBG() {
-  ctx.fillStyle = '#0a0a18';
+function drawBG(){
+  ctx.fillStyle='#0a0a18';
   ctx.fillRect(0,0,LW,LH);
   ctx.strokeStyle='rgba(255,255,255,0.022)';
   ctx.lineWidth=1;
@@ -550,189 +819,97 @@ function drawBG() {
   for(let y=0;y<LH;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(LW,y);ctx.stroke();}
 }
 
-function drawFlowArrow() {
-  const ax = pA.x, ay = pA.y - 20;
-  const bx = pB.x, by = pB.y - 20;
-  const midX = (ax+bx)/2, midY = (ay+by)/2;
-  const angle = Math.atan2(by-ay, bx-ax);
-  const len   = dist2(ax,ay,bx,by);
-  if (len < 80) return;
-
+function drawFlowArrow(){
+  const ax=pA.x,ay=pA.y-20,bx=pB.x,by=pB.y-20;
+  const angle=Math.atan2(by-ay,bx-ax);
+  if(dist2(ax,ay,bx,by)<80) return;
   ctx.save();
-  ctx.globalAlpha = 0.1;
-  ctx.strokeStyle = cs(COL.A);
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([7,7]);
-
-  if (flowDir==='AB' || flowDir==='BOTH') {
+  ctx.globalAlpha=.1;
+  if(flowDir==='AB'||flowDir==='BOTH'){
+    ctx.strokeStyle=cs(COL.A);ctx.lineWidth=1.5;ctx.setLineDash([7,7]);
     ctx.beginPath();
-    ctx.moveTo(ax + Math.cos(angle)*55, ay + Math.sin(angle)*55);
-    ctx.lineTo(bx - Math.cos(angle)*55, by - Math.sin(angle)*55);
+    ctx.moveTo(ax+Math.cos(angle)*55,ay+Math.sin(angle)*55);
+    ctx.lineTo(bx-Math.cos(angle)*55,by-Math.sin(angle)*55);
     ctx.stroke();
-    // 矢頭
     ctx.setLineDash([]);
-    const hx = bx - Math.cos(angle)*55, hy = by - Math.sin(angle)*55;
+    const hx=bx-Math.cos(angle)*55,hy=by-Math.sin(angle)*55;
     ctx.beginPath();
-    ctx.moveTo(hx - Math.cos(angle-0.4)*14, hy - Math.sin(angle-0.4)*14);
-    ctx.lineTo(hx, hy);
-    ctx.lineTo(hx - Math.cos(angle+0.4)*14, hy - Math.sin(angle+0.4)*14);
+    ctx.moveTo(hx-Math.cos(angle-.4)*14,hy-Math.sin(angle-.4)*14);
+    ctx.lineTo(hx,hy);
+    ctx.lineTo(hx-Math.cos(angle+.4)*14,hy-Math.sin(angle+.4)*14);
     ctx.stroke();
   }
-  if (flowDir==='BA' || flowDir==='BOTH') {
-    ctx.setLineDash([7,7]);
-    ctx.strokeStyle = cs(COL.B);
+  if(flowDir==='BA'||flowDir==='BOTH'){
+    ctx.strokeStyle=cs(COL.B);ctx.lineWidth=1.5;ctx.setLineDash([7,7]);
     ctx.beginPath();
-    ctx.moveTo(bx - Math.cos(angle)*55, by - Math.sin(angle)*55);
-    ctx.lineTo(ax + Math.cos(angle)*55, ay + Math.sin(angle)*55);
+    ctx.moveTo(bx-Math.cos(angle)*55,by-Math.sin(angle)*55);
+    ctx.lineTo(ax+Math.cos(angle)*55,ay+Math.sin(angle)*55);
     ctx.stroke();
     ctx.setLineDash([]);
-    const hx = ax + Math.cos(angle)*55, hy = ay + Math.sin(angle)*55;
+    const hx=ax+Math.cos(angle)*55,hy=ay+Math.sin(angle)*55;
     ctx.beginPath();
-    ctx.moveTo(hx + Math.cos(angle-0.4)*14, hy + Math.sin(angle-0.4)*14);
-    ctx.lineTo(hx, hy);
-    ctx.lineTo(hx + Math.cos(angle+0.4)*14, hy + Math.sin(angle+0.4)*14);
+    ctx.moveTo(hx+Math.cos(angle-.4)*14,hy+Math.sin(angle-.4)*14);
+    ctx.lineTo(hx,hy);
+    ctx.lineTo(hx+Math.cos(angle+.4)*14,hy+Math.sin(angle+.4)*14);
     ctx.stroke();
   }
   ctx.restore();
 }
 
-function drawPerson(person, label) {
-  ctx.save();
-  let ox = 0;
-  if (person.repelling > 0) ox = (Math.random()-0.5)*5*(person.repelling/65);
-
-  ctx.shadowColor = cs(person.color,1);
-  ctx.shadowBlur  = 20 + person.infusion*26;
-
-  const grad = ctx.createRadialGradient(
-    person.x+ox, person.y-20, 4,
-    person.x+ox, person.y-20, 118
-  );
-  grad.addColorStop(0, cs(person.color,0.95));
-  grad.addColorStop(1, cs(person.color,0.42));
-  ctx.fillStyle = grad;
-  buildHumanPath(person.x+ox, person.y);
-  ctx.fill();
-
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = cs(person.color,0.52);
-  ctx.lineWidth = 1.8;
-  buildHumanPath(person.x+ox, person.y);
-  ctx.stroke();
-
-  // 拒絶シールド
-  if (person.repelling > 0) {
-    const prog = person.repelling/65;
-    ctx.strokeStyle = cs(person.baseColor, prog*0.85);
-    ctx.lineWidth = 3;
-    ctx.shadowColor = cs(person.baseColor, prog);
-    ctx.shadowBlur  = 22;
-    ctx.beginPath();
-    ctx.ellipse(person.x, person.y-20, 58, 118, 0, 0, Math.PI*2);
-    ctx.stroke();
-  }
-
-  // ドラッグ中ハイライト
-  if (person.dragging) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 0;
-    ctx.setLineDash([5,5]);
-    ctx.beginPath();
-    ctx.ellipse(person.x, person.y-20, 58, 118, 0, 0, Math.PI*2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = cs(person.color,0.75);
-  ctx.font = 'bold 13px Segoe UI';
-  ctx.textAlign = 'center';
-  ctx.fillText(label, person.x, person.y+158);
-
-  // 染み込みバー
-  const absorbed = person.id==='B' ? absorbedA : absorbedB;
-  const inf = absorbed/MAX_ABSORB;
-  const bw=90, bh=7;
-  const bx=person.x-bw/2, by=person.y+170;
-  ctx.fillStyle='rgba(255,255,255,0.07)';
-  ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,4); ctx.fill();
-  const barCol = person.id==='B'
-    ? lerpColor(COL.B, COL.A, inf)
-    : lerpColor(COL.A, COL.B, inf);
-  ctx.fillStyle = cs(barCol,0.88);
-  ctx.beginPath(); ctx.roundRect(bx,by,bw*inf,bh,4); ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.38)';
-  ctx.font='11px Segoe UI';
-  ctx.fillText(`${Math.round(inf*100)}%`, person.x, by+bh+14);
-
-  ctx.restore();
-}
-
-function drawParticles() {
-  particles.forEach(p => {
-    if (p.state==='absorbed'||p.delay>0) return;
+function drawParticles(){
+  particles.forEach(p=>{
+    if(p.state==='absorbed'||p.delay>0) return;
     ctx.save();
-    ctx.globalAlpha = p.alpha;
-    ctx.shadowColor = cs(p.color,0.9);
-    ctx.shadowBlur  = 9;
-    ctx.fillStyle   = cs(p.color,1);
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-    ctx.fill();
+    ctx.globalAlpha=p.alpha;
+    ctx.shadowColor=cs(p.color,.9);ctx.shadowBlur=9;
+    ctx.fillStyle=cs(p.color,1);
+    ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
     ctx.restore();
   });
-  repelParticles.forEach(p => {
+  repelParticles.forEach(p=>{
     ctx.save();
-    ctx.globalAlpha = p.alpha;
-    ctx.shadowColor = cs(p.color,0.8);
-    ctx.shadowBlur  = 7;
-    ctx.fillStyle   = cs(p.color,1);
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-    ctx.fill();
+    ctx.globalAlpha=p.alpha;
+    ctx.shadowColor=cs(p.color,.8);ctx.shadowBlur=7;
+    ctx.fillStyle=cs(p.color,1);
+    ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
     ctx.restore();
   });
 }
 
-function drawRipples() {
-  ripples.forEach(r => {
+function drawRipples(){
+  ripples.forEach(r=>{
     ctx.save();
-    ctx.strokeStyle = cs(r.color,r.alpha);
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.ellipse(r.x,r.y,r.r*0.38,r.r,0,0,Math.PI*2);
-    ctx.stroke();
+    ctx.strokeStyle=cs(r.color,r.alpha);ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.ellipse(r.x,r.y,r.r*.38,r.r,0,0,Math.PI*2);ctx.stroke();
     ctx.restore();
   });
 }
 
-function drawUI() {
+function drawUI(){
   ctx.save();
   ctx.fillStyle='rgba(255,255,255,0.22)';
-  ctx.font='12px Segoe UI';
-  ctx.textAlign='center';
-  const pctA = Math.round((absorbedA/MAX_ABSORB)*100);
-  const pctB = Math.round((absorbedB/MAX_ABSORB)*100);
-  let txt = '';
-  if (flowDir==='AB')   txt = `A→B 染み込み: ${pctA}%`;
-  if (flowDir==='BA')   txt = `B→A 染み込み: ${pctB}%`;
-  if (flowDir==='BOTH') txt = `A→B: ${pctA}%  ／  B→A: ${pctB}%`;
-  ctx.fillText(txt, LW/2, LH-14);
+  ctx.font='12px Segoe UI';ctx.textAlign='center';
+  const pA2=Math.round((absorbedA/MAX_ABSORB)*100);
+  const pB2=Math.round((absorbedB/MAX_ABSORB)*100);
+  let txt='';
+  if(flowDir==='AB')   txt=`A→B 染み込み: ${pA2}%`;
+  if(flowDir==='BA')   txt=`B→A 染み込み: ${pB2}%`;
+  if(flowDir==='BOTH') txt=`A→B: ${pA2}%  ／  B→A: ${pB2}%`;
+  ctx.fillText(txt, LW/2, LH-12);
   ctx.restore();
 }
 
 // =============================================
 // メインループ
 // =============================================
-function loop() {
+function loop(){
   frame++;
   updateParticles();
   drawBG();
   drawFlowArrow();
   drawRipples();
-  drawPerson(pA, '人 A');
-  drawPerson(pB, '人 B');
+  drawPersonMorph(pA);
+  drawPersonMorph(pB);
   drawParticles();
   drawUI();
   requestAnimationFrame(loop);
@@ -742,85 +919,63 @@ function loop() {
 // ステータス
 // =============================================
 let statusTimer;
-function updateStatus(msg) {
-  statusEl.textContent = msg;
-  statusEl.style.opacity = '0.7';
+function updateStatus(msg){
+  statusEl.textContent=msg;
+  statusEl.style.opacity='.7';
   clearTimeout(statusTimer);
-  statusTimer = setTimeout(()=>{ statusEl.style.opacity='0.3'; }, 3000);
+  statusTimer=setTimeout(()=>{statusEl.style.opacity='.3';},3000);
 }
 
 // =============================================
-// ドラッグ管理
+// ポインター（ドラッグ＋タップ）
 // =============================================
-let draggingPerson = null;
-let dragOffX = 0, dragOffY = 0;
-let isPointerDown = false;
-let lastPos = null;
+let draggingPerson=null, dragOffX=0, dragOffY=0;
+let isPointerDown=false;
 
-function getPointerPos(e) {
-  const src = e.touches ? e.touches[0] : e;
-  return toLogical(src.clientX, src.clientY);
+function getPPos(e){
+  const s=e.touches?e.touches[0]:e;
+  return toLogical(s.clientX,s.clientY);
 }
 
-function onPointerDown(e) {
+function onDown(e){
   e.preventDefault();
-  isPointerDown = true;
-  const pos = getPointerPos(e);
-  lastPos = pos;
-  hintEl.style.opacity = '0';
-
-  // 人物ドラッグ判定（優先）
-  for (const p of [pA, pB]) {
-    if (insidePerson(p, pos.x, pos.y)) {
-      draggingPerson = p;
-      p.dragging = true;
-      dragOffX = pos.x - p.x;
-      dragOffY = pos.y - p.y;
+  isPointerDown=true;
+  const pos=getPPos(e);
+  hintEl.style.opacity='0';
+  for(const p of [pA,pB]){
+    if(insidePerson(p,pos.x,pos.y)){
+      draggingPerson=p; p.dragging=true;
+      dragOffX=pos.x-p.x; dragOffY=pos.y-p.y;
       updateStatus(`人 ${p.id} を移動中...`);
       return;
     }
   }
-
-  // 人物外 → 粒子放出
-  const sender   = getSender();
-  const receiver = getReceiver();
-
-  if (flowDir==='BOTH') {
-    // 双方向：タップ位置が人Aに近ければA発、Bに近ければB発
-    const dA = dist2(pos.x,pos.y,pA.x,pA.y);
-    const dB = dist2(pos.x,pos.y,pB.x,pB.y);
-    if (dA < dB) {
-      for(let i=0;i<5;i++) spawnFromPoint(pos.x,pos.y,pA,pB);
-    } else {
-      for(let i=0;i<5;i++) spawnFromPoint(pos.x,pos.y,pB,pA);
-    }
+  // 粒子放出
+  const sender=getSender(), receiver=getReceiver();
+  if(flowDir==='BOTH'){
+    const da=dist2(pos.x,pos.y,pA.x,pA.y), db=dist2(pos.x,pos.y,pB.x,pB.y);
+    if(da<db){ for(let i=0;i<5;i++) spawnFromPoint(pos.x,pos.y,pA,pB); }
+    else      { for(let i=0;i<5;i++) spawnFromPoint(pos.x,pos.y,pB,pA); }
   } else {
     for(let i=0;i<5;i++) spawnFromPoint(pos.x,pos.y,sender,receiver);
   }
   updateStatus('✨ 粒子を送り込んだ');
 }
 
-function onPointerMove(e) {
+function onMove(e){
   e.preventDefault();
-  const pos = getPointerPos(e);
-
-  if (draggingPerson) {
-    // 人物移動（キャンバス内に制限）
-    draggingPerson.x = Math.max(60, Math.min(LW-60, pos.x - dragOffX));
-    draggingPerson.y = Math.max(140, Math.min(LH-160, pos.y - dragOffY));
+  const pos=getPPos(e);
+  if(draggingPerson){
+    draggingPerson.x=Math.max(65,Math.min(LW-65,pos.x-dragOffX));
+    draggingPerson.y=Math.max(145,Math.min(LH-170,pos.y-dragOffY));
     return;
   }
-
-  if (!isPointerDown) return;
-  lastPos = pos;
-
-  // ドラッグ中に粒子連続生成
-  if (!insidePerson(pA,pos.x,pos.y) && !insidePerson(pB,pos.x,pos.y)) {
-    if (frame%2===0) {
-      if (flowDir==='BOTH') {
-        const dA=dist2(pos.x,pos.y,pA.x,pA.y);
-        const dB=dist2(pos.x,pos.y,pB.x,pB.y);
-        if(dA<dB){ for(let i=0;i<3;i++) spawnFromPoint(pos.x,pos.y,pA,pB); }
+  if(!isPointerDown) return;
+  if(!insidePerson(pA,pos.x,pos.y)&&!insidePerson(pB,pos.x,pos.y)){
+    if(frame%2===0){
+      if(flowDir==='BOTH'){
+        const da=dist2(pos.x,pos.y,pA.x,pA.y),db=dist2(pos.x,pos.y,pB.x,pB.y);
+        if(da<db){ for(let i=0;i<3;i++) spawnFromPoint(pos.x,pos.y,pA,pB); }
         else      { for(let i=0;i<3;i++) spawnFromPoint(pos.x,pos.y,pB,pA); }
       } else {
         for(let i=0;i<3;i++) spawnFromPoint(pos.x,pos.y,getSender(),getReceiver());
@@ -829,90 +984,78 @@ function onPointerMove(e) {
   }
 }
 
-function onPointerUp(e) {
+function onUp(e){
   e.preventDefault();
-  isPointerDown = false;
-  if (draggingPerson) {
-    draggingPerson.dragging = false;
+  isPointerDown=false;
+  if(draggingPerson){
+    draggingPerson.dragging=false;
     updateStatus(`人 ${draggingPerson.id} を配置しました`);
-    draggingPerson = null;
+    draggingPerson=null;
   }
-  lastPos = null;
 }
 
-canvas.addEventListener('mousedown',  onPointerDown, {passive:false});
-canvas.addEventListener('mousemove',  onPointerMove, {passive:false});
-canvas.addEventListener('mouseup',    onPointerUp,   {passive:false});
-canvas.addEventListener('mouseleave', onPointerUp,   {passive:false});
-canvas.addEventListener('touchstart', onPointerDown, {passive:false});
-canvas.addEventListener('touchmove',  onPointerMove, {passive:false});
-canvas.addEventListener('touchend',   onPointerUp,   {passive:false});
+canvas.addEventListener('mousedown', onDown,{passive:false});
+canvas.addEventListener('mousemove', onMove,{passive:false});
+canvas.addEventListener('mouseup',   onUp,  {passive:false});
+canvas.addEventListener('mouseleave',onUp,  {passive:false});
+canvas.addEventListener('touchstart',onDown,{passive:false});
+canvas.addEventListener('touchmove', onMove,{passive:false});
+canvas.addEventListener('touchend',  onUp,  {passive:false});
 
 // =============================================
 // 方向ボタン
 // =============================================
-function setDir(dir) {
-  flowDir = dir;
-  document.getElementById('dirAB').classList.toggle('active',  dir==='AB');
-  document.getElementById('dirBA').classList.toggle('active',  dir==='BA');
+function setDir(dir){
+  flowDir=dir;
+  document.getElementById('dirAB').classList.toggle('active',dir==='AB');
+  document.getElementById('dirBA').classList.toggle('active',dir==='BA');
   document.getElementById('dirBoth').classList.toggle('active',dir==='BOTH');
-  const labels = { AB:'A から B へ染み込み中', BA:'B から A へ染み込み中', BOTH:'A ⇄ B 双方向に染み込み中' };
-  dirLabel.textContent = labels[dir];
-  updateStatus(`方向を「${labels[dir]}」に変更`);
+  const lbl={AB:'A から B へ染み込み中',BA:'B から A へ染み込み中',BOTH:'A ⇄ B 双方向に染み込み中'};
+  dirLabel.textContent=lbl[dir];
+  updateStatus(`方向を「${lbl[dir]}」に変更`);
 }
-document.getElementById('dirAB').addEventListener('click',   ()=>setDir('AB'));
-document.getElementById('dirBA').addEventListener('click',   ()=>setDir('BA'));
-document.getElementById('dirBoth').addEventListener('click', ()=>setDir('BOTH'));
+document.getElementById('dirAB').addEventListener('click',  ()=>setDir('AB'));
+document.getElementById('dirBA').addEventListener('click',  ()=>setDir('BA'));
+document.getElementById('dirBoth').addEventListener('click',()=>setDir('BOTH'));
 
 // =============================================
 // アクションボタン
 // =============================================
-document.getElementById('btnBurstA').addEventListener('click', () => {
-  spawnFromPerson(pA, pB, 55, {speed:3, jitter:35, delay:0});
-  addRipple(pA.x, pA.y-20, COL.A);
-  updateStatus('💥 A が感情爆発！大量の粒子が放出された');
+document.getElementById('btnBurstA').addEventListener('click',()=>{
+  spawnFromPerson(pA,pB,55,{speed:3,jitter:35,delay:0});
+  addRipple(pA.x,pA.y-20,COL.A);
+  updateStatus('💥 A が感情爆発！');
 });
-document.getElementById('btnBurstB').addEventListener('click', () => {
-  spawnFromPerson(pB, pA, 55, {speed:3, jitter:35, delay:0});
-  addRipple(pB.x, pB.y-20, COL.B);
-  updateStatus('💥 B が感情爆発！大量の粒子が放出された');
+document.getElementById('btnBurstB').addEventListener('click',()=>{
+  spawnFromPerson(pB,pA,55,{speed:3,jitter:35,delay:0});
+  addRipple(pB.x,pB.y-20,COL.B);
+  updateStatus('💥 B が感情爆発！');
 });
-document.getElementById('btnRepel').addEventListener('click', () => {
-  triggerRepel();
-});
-document.getElementById('btnReset').addEventListener('click', () => {
-  particles=[]; repelParticles=[]; ripples=[];
-  absorbedA=0; absorbedB=0; frame=0;
-  pA.color={...COL.A}; pA.infusion=0; pA.repelling=0;
-  pB.color={...COL.B}; pB.infusion=0; pB.repelling=0;
+document.getElementById('btnRepel').addEventListener('click',()=>triggerRepel());
+document.getElementById('btnReset').addEventListener('click',()=>{
+  particles=[];repelParticles=[];ripples=[];
+  absorbedA=0;absorbedB=0;frame=0;
+  pA.color={...COL.A};pA.infusion=0;pA.repelling=0;
+  pB.color={...COL.B};pB.infusion=0;pB.repelling=0;
   hintEl.style.opacity='1';
   updateStatus('↺ リセットしました');
 });
 
 // =============================================
-// 速度コントロール（ボタン + スライダー連動）
+// 速度
 // =============================================
-const spdBtns   = document.querySelectorAll('.spd-btn');
-const spdSlider = document.getElementById('speedSlider');
-
-function setSpeed(v) {
-  speedMult = v;
-  spdSlider.value = v;
-  spdBtns.forEach(b => {
-    b.classList.toggle('active', parseFloat(b.dataset.v)===v);
-  });
+const spdBtns=document.querySelectorAll('.spd-btn');
+const spdSlider=document.getElementById('speedSlider');
+function setSpeed(v){
+  speedMult=v; spdSlider.value=v;
+  spdBtns.forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.v)===v));
   updateStatus(`速度: ${v}x`);
 }
-
-spdBtns.forEach(b => {
-  b.addEventListener('click', () => setSpeed(parseFloat(b.dataset.v)));
-});
-spdSlider.addEventListener('input', e => {
-  const v = parseFloat(e.target.value);
-  speedMult = v;
-  spdBtns.forEach(b => {
-    b.classList.toggle('active', parseFloat(b.dataset.v)===v);
-  });
+spdBtns.forEach(b=>b.addEventListener('click',()=>setSpeed(parseFloat(b.dataset.v))));
+spdSlider.addEventListener('input',e=>{
+  const v=parseFloat(e.target.value);
+  speedMult=v;
+  spdBtns.forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.v)===v));
   updateStatus(`速度: ${v}x`);
 });
 
