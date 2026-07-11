@@ -103,60 +103,186 @@ function setEditorText(code) {
 }
 
 // ============================================================
-// シンタックスハイライト
+// シンタックスハイライト（トークナイザー方式）
+//
+// 【修正前の問題点】
+//   正規表現を順番に適用する方式では、コメント内・文字列内の
+//   キーワードや括弧まで誤ってハイライトされてしまっていた。
+//   例: // const x = 1;  → const がキーワード色になる
+//
+// 【修正後の方式】
+//   コードを先頭から1トークンずつ読み進める「トークナイザー」方式。
+//   コメント・文字列を最優先で検出し、その中身は一切ハイライトしない。
+//   これにより「コメント内のコードが実行されているように見える」問題を解消。
 // ============================================================
 
 /**
  * コード文字列を HTML（スパンタグ付き）に変換して返す。
- * 正規表現ベースの簡易ハイライター。
- * XSS 対策として < > & をエスケープしてからタグを挿入する。
+ * 先頭から順にトークンを読み取り、種類に応じたスパンタグを付与する。
+ *
+ * 優先順位（上から順に判定）:
+ *   1. // コメント（行末まで）
+ *   2. /* * / コメント（複数行）
+ *   3. テンプレートリテラル（` `）
+ *   4. 文字列（" " または ' '）
+ *   5. 数値
+ *   6. キーワード・組み込み識別子
+ *   7. 演算子・記号
+ *   8. その他（そのまま出力）
  */
 function highlight(code) {
-  // まず HTML 特殊文字をエスケープ
-  const escaped = code
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 
-  // トークンの優先順位順に正規表現を定義
-  const rules = [
-    // コメント（// 〜 行末）
-    { cls: 'hl-comment',  re: /(\/\/[^\n]*)/g },
-    // コメント（/* 〜 */）
-    { cls: 'hl-comment',  re: /(\/\*[\s\S]*?\*\/)/g },
-    // テンプレートリテラル（` 〜 `）
-    { cls: 'hl-string',   re: /(`(?:\\.|[^`\\])*`)/g },
-    // ダブルクォート文字列
-    { cls: 'hl-string',   re: /("(?:\\.|[^"\\])*")/g },
-    // シングルクォート文字列
-    { cls: 'hl-string',   re: /('(?:\\.|[^'\\])*')/g },
-    // 数値（整数・浮動小数点・16進数）
-    { cls: 'hl-number',   re: /\b(0x[\da-fA-F]+|\d+\.?\d*(?:e[+-]?\d+)?)\b/g },
-    // キーワード
-    { cls: 'hl-keyword',  re: /\b(async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|finally|for|from|function|if|import|in|instanceof|let|new|null|of|return|static|super|switch|this|throw|true|false|try|typeof|undefined|var|void|while|with|yield)\b/g },
-    // 組み込みオブジェクト・関数
-    { cls: 'hl-builtin',  re: /\b(Array|Boolean|console|Date|document|Error|Event|fetch|JSON|Map|Math|Number|Object|Promise|Proxy|Reflect|RegExp|Set|String|Symbol|WeakMap|WeakSet|window|globalThis|setTimeout|setInterval|clearTimeout|clearInterval|parseInt|parseFloat|isNaN|isFinite|encodeURI|decodeURI|alert|confirm|prompt)\b/g },
-    // 関数名（function キーワードの後、または () の前の識別子）
-    { cls: 'hl-function', re: /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()/g },
-    // 演算子
-    { cls: 'hl-operator', re: /([+\-*/%=!&|^~<>?:]+)/g },
-  ];
+  // キーワード一覧（完全一致のみ。識別子の一部にはマッチしない）
+  const KEYWORDS = new Set([
+    'async','await','break','case','catch','class','const','continue',
+    'debugger','default','delete','do','else','export','extends',
+    'finally','for','from','function','if','import','in','instanceof',
+    'let','new','null','of','return','static','super','switch',
+    'this','throw','true','false','try','typeof','undefined',
+    'var','void','while','with','yield',
+  ]);
 
-  // プレースホルダー方式でトークンを順番に置換
-  // （後の置換が前の結果を壊さないようにするため）
-  const tokens = [];
-  let result = escaped;
+  // 組み込みオブジェクト・関数一覧
+  const BUILTINS = new Set([
+    'Array','Boolean','console','Date','document','Error','Event',
+    'fetch','JSON','Map','Math','Number','Object','Promise','Proxy',
+    'Reflect','RegExp','Set','String','Symbol','WeakMap','WeakSet',
+    'window','globalThis','setTimeout','setInterval',
+    'clearTimeout','clearInterval','parseInt','parseFloat',
+    'isNaN','isFinite','encodeURI','decodeURI','alert','confirm','prompt',
+  ]);
 
-  for (const { cls, re } of rules) {
-    result = result.replace(re, (match) => {
-      const idx = tokens.length;
-      tokens.push(`<span class="${cls}">${match}</span>`);
-      return `\x00${idx}\x00`;  // 一時プレースホルダー
-    });
+  let result = '';  // 出力 HTML を蓄積する文字列
+  let i      = 0;  // 現在の読み取り位置（文字インデックス）
+
+  // ---- ユーティリティ関数 ----
+
+  /** 文字を HTML エンティティにエスケープする（XSS対策） */
+  function esc(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
-  // プレースホルダーを実際のスパンタグに戻す
-  result = result.replace(/\x00(\d+)\x00/g, (_, i) => tokens[Number(i)]);
+  /** 指定クラスのスパンタグで文字列を囲む */
+  function span(cls, content) {
+    return `<span class="${cls}">${esc(content)}</span>`;
+  }
+
+  // ---- メインループ: 先頭から1トークンずつ処理 ----
+  while (i < code.length) {
+
+    // ── 1. 一行コメント: // から行末まで ──────────────────
+    // コメント内のキーワード・数値等は一切ハイライトしない
+    if (code[i] === '/' && code[i + 1] === '/') {
+      const end   = code.indexOf('\n', i);
+      // 行末が見つからなければファイル末尾まで
+      const token = end === -1 ? code.slice(i) : code.slice(i, end);
+      result += span('hl-comment', token);
+      i      += token.length;
+      continue;
+    }
+
+    // ── 2. 複数行コメント: /* から */ まで ────────────────
+    // コメント内のキーワード・数値等は一切ハイライトしない
+    if (code[i] === '/' && code[i + 1] === '*') {
+      const end   = code.indexOf('*/', i + 2);
+      // 閉じ */ が見つからなければファイル末尾まで
+      const token = end === -1 ? code.slice(i) : code.slice(i, end + 2);
+      result += span('hl-comment', token);
+      i      += token.length;
+      continue;
+    }
+
+    // ── 3. テンプレートリテラル: ` から ` まで ────────────
+    // バックスラッシュエスケープ（\` 等）を考慮して終端を検出する
+    if (code[i] === '`') {
+      let j = i + 1;
+      while (j < code.length) {
+        if (code[j] === '\\') { j += 2; continue; }  // エスケープをスキップ
+        if (code[j] === '`')  { j++;    break;    }
+        j++;
+      }
+      result += span('hl-string', code.slice(i, j));
+      i       = j;
+      continue;
+    }
+
+    // ── 4. 文字列: " または ' で囲まれた範囲 ─────────────
+    // バックスラッシュエスケープと改行を考慮して終端を検出する
+    if (code[i] === '"' || code[i] === "'") {
+      const quote = code[i];
+      let j = i + 1;
+      while (j < code.length) {
+        if (code[j] === '\\')  { j += 2; continue; }  // エスケープをスキップ
+        if (code[j] === '\n')  { break; }              // 改行で文字列終了
+        if (code[j] === quote) { j++;   break;    }
+        j++;
+      }
+      result += span('hl-string', code.slice(i, j));
+      i       = j;
+      continue;
+    }
+
+    // ── 5. 数値: 整数・浮動小数点・16進数 ────────────────
+    // 識別子の途中の数字にはマッチしないよう、直前が英字でないことを確認
+    if (
+      /\d/.test(code[i]) &&
+      (i === 0 || !/[a-zA-Z_$]/.test(code[i - 1]))
+    ) {
+      // 16進数 (0x...) または通常の数値にマッチ
+      const match = code.slice(i).match(/^(0x[\da-fA-F]+|\d+\.?\d*(?:e[+-]?\d+)?)/i);
+      if (match) {
+        result += span('hl-number', match[0]);
+        i      += match[0].length;
+        continue;
+      }
+    }
+
+    // ── 6. 識別子: キーワード・組み込み・関数名・変数名 ──
+    if (/[a-zA-Z_$]/.test(code[i])) {
+      // 識別子の終端（英数字・_・$ 以外）を探す
+      let j = i + 1;
+      while (j < code.length && /[a-zA-Z0-9_$]/.test(code[j])) j++;
+      const word = code.slice(i, j);
+
+      if (KEYWORDS.has(word)) {
+        // キーワード（if / const / function 等）
+        result += span('hl-keyword', word);
+      } else if (BUILTINS.has(word)) {
+        // 組み込みオブジェクト・関数（console / Math 等）
+        result += span('hl-builtin', word);
+      } else {
+        // 識別子の直後に ( があれば関数呼び出しとして扱う
+        // 空白をスキップしてから ( を確認する
+        let k = j;
+        while (k < code.length && code[k] === ' ') k++;
+        if (code[k] === '(') {
+          result += span('hl-function', word);
+        } else {
+          // 通常の変数名・プロパティ名はハイライトなし（そのまま出力）
+          result += esc(word);
+        }
+      }
+      i = j;
+      continue;
+    }
+
+    // ── 7. 演算子・記号 ───────────────────────────────────
+    // 連続する演算子文字をまとめて1トークンとして扱う
+    if (/[+\-*/%=!&|^~<>?:;,.]/.test(code[i])) {
+      let j = i + 1;
+      while (j < code.length && /[+\-*/%=!&|^~<>?:]/.test(code[j])) j++;
+      result += span('hl-operator', code.slice(i, j));
+      i       = j;
+      continue;
+    }
+
+    // ── 8. その他（空白・改行・括弧など）はそのまま出力 ──
+    result += esc(code[i]);
+    i++;
+  }
 
   return result;
 }
@@ -440,8 +566,8 @@ function handleEnter() {
   const preRange = document.createRange();
   preRange.selectNodeContents(editorEl);
   preRange.setEnd(range.startContainer, range.startOffset);
-  const textBefore = preRange.toString();
-  const lines      = textBefore.split('\n');
+  const textBefore  = preRange.toString();
+  const lines       = textBefore.split('\n');
   const currentLine = lines[lines.length - 1];
   const indent      = currentLine.match(/^(\s*)/)[1];
 
@@ -466,8 +592,7 @@ function handleBackspace() {
   if (text.endsWith('    ')) {
     // スペース4つを選択して削除
     const newRange = range.cloneRange();
-    newRange.setStart(range.startContainer,
-                      range.startOffset - 4);
+    newRange.setStart(range.startContainer, range.startOffset - 4);
     sel.removeAllRanges();
     sel.addRange(newRange);
     document.execCommand('delete');
@@ -587,7 +712,7 @@ function moveAc(dir) {
 
 /** 選択中の補完候補をエディタに適用する */
 function applyAutocomplete(index = state.acIndex) {
-  const word  = getCurrentWord();
+  const word   = getCurrentWord();
   const chosen = state.acMatches[index];
   if (!chosen) { hideAutocomplete(); return; }
 
@@ -622,15 +747,15 @@ function openSearch() {
 function closeSearch() {
   searchBar.classList.add('hidden');
   clearSearchHighlights();
-  state.searchResults = [];
-  state.searchIndex   = -1;
+  state.searchResults     = [];
+  state.searchIndex       = -1;
   searchCount.textContent = '';
   editorEl.focus();
 }
 
 /**
- * エディタ内を検索してすべての一致箇所を mark タグでハイライトする。
- * 検索結果を state.searchResults に格納する。
+ * エディタ内を検索してすべての一致箇所を検出する。
+ * 検索結果の文字オフセットを state.searchResults に格納する。
  */
 function doSearch() {
   clearSearchHighlights();
@@ -668,23 +793,20 @@ function findPrev() {
   scrollToResult(state.searchIndex);
 }
 
-/** 指定インデックスの検索結果にスクロールしてカーソルを移動する */
+/** 指定インデックスの検索結果の行にスクロールする */
 function scrollToResult(idx) {
-  // 簡易実装: 検索結果の行にスクロール
-  const pos   = state.searchResults[idx];
-  const code  = getCode();
-  const lines = code.substring(0, pos).split('\n');
-  const lineNo = lines.length;
-  const lineEls = lineNumEl.textContent.split('\n');
-  // 行番号エリアの高さから概算スクロール位置を計算
-  const lineH = 13 * 1.6; // font-size * line-height
+  const pos    = state.searchResults[idx];
+  const code   = getCode();
+  const lineNo = code.substring(0, pos).split('\n').length;
+  const lineH  = 13 * 1.6; // font-size × line-height の概算
   document.getElementById('editor-wrap').scrollTop = (lineNo - 3) * lineH;
 }
 
 function clearSearchHighlights() {
-  // 検索ハイライトは視覚的にのみ表示（DOM 操作なし）
+  // 検索ハイライトは件数表示のみで DOM 操作なし
 }
 
+/** 正規表現の特殊文字をエスケープする */
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -694,8 +816,8 @@ function escapeRegex(str) {
 // ============================================================
 
 function toggleComment() {
-  const code  = getCode();
-  const sel   = saveSelection(editorEl);
+  const code = getCode();
+  const sel  = saveSelection(editorEl);
   if (!sel) return;
 
   const lines     = code.split('\n');
@@ -816,13 +938,11 @@ function saveAsFile() {
 // ============================================================
 
 function changeFontSize(delta) {
-  const current = parseFloat(
-    getComputedStyle(editorEl).fontSize
-  );
-  const next = Math.min(32, Math.max(8, current + delta));
-  editorEl.style.fontSize      = `${next}px`;
-  lineNumEl.style.fontSize     = `${next}px`;
-  outputEl.style.fontSize      = `${next}px`;
+  const current = parseFloat(getComputedStyle(editorEl).fontSize);
+  const next    = Math.min(32, Math.max(8, current + delta));
+  editorEl.style.fontSize  = `${next}px`;
+  lineNumEl.style.fontSize = `${next}px`;
+  outputEl.style.fontSize  = `${next}px`;
 }
 
 // ============================================================
@@ -867,14 +987,13 @@ function initResizer() {
     startY       = e.clientY;
     startEditorH = editorPane.offsetHeight;
     startOutputH = outputPane.offsetHeight;
-
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup',   onMouseUp);
     e.preventDefault();
   });
 
   function onMouseMove(e) {
-    const dy = e.clientY - startY;
+    const dy         = e.clientY - startY;
     const newEditorH = Math.max(80, startEditorH + dy);
     const newOutputH = Math.max(80, startOutputH - dy);
     editorPane.style.flex = `0 0 ${newEditorH}px`;
@@ -888,7 +1007,7 @@ function initResizer() {
 }
 
 // ============================================================
-// ★ 実行エンジン
+// 実行エンジン
 //   eval() を使ってブラウザ上で JS を実行する。
 //   console.log 等をオーバーライドして出力をキャプチャする。
 //   async/await・Promise・setTimeout に対応。
@@ -902,9 +1021,9 @@ function runCode() {
   if (!code) { appendOutput('⚠ コードが空です。\n', 'out-warning'); return; }
 
   clearOutput();
-  state.isRunning     = false;
-  state.stopRequested = false;
-  state.stdinQueue    = [];
+  state.isRunning      = false;
+  state.stopRequested  = false;
+  state.stdinQueue     = [];
   state.stdinResolvers = [];
 
   appendOutput('▶ 実行開始\n', 'out-info');
@@ -922,8 +1041,8 @@ function runCode() {
 
   /** 値を読みやすい文字列に変換する */
   function stringify(val) {
-    if (val === null)      return 'null';
-    if (val === undefined) return 'undefined';
+    if (val === null)           return 'null';
+    if (val === undefined)      return 'undefined';
     if (typeof val === 'object') {
       try { return JSON.stringify(val, null, 2); }
       catch { return String(val); }
@@ -931,11 +1050,11 @@ function runCode() {
     return String(val);
   }
 
-  console.log   = (...args) => { appendOutput(args.map(stringify).join(' ') + '\n', 'out-stdout'); origConsole.log(...args); };
-  console.warn  = (...args) => { appendOutput('⚠ ' + args.map(stringify).join(' ') + '\n', 'out-warning'); origConsole.warn(...args); };
-  console.error = (...args) => { appendOutput('✖ ' + args.map(stringify).join(' ') + '\n', 'out-stderr'); origConsole.error(...args); };
-  console.info  = (...args) => { appendOutput('ℹ ' + args.map(stringify).join(' ') + '\n', 'out-info'); origConsole.info(...args); };
-  console.table = (data)    => { appendOutput(tableToString(data) + '\n', 'out-stdout'); origConsole.table(data); };
+  console.log   = (...args) => { appendOutput(args.map(stringify).join(' ') + '\n', 'out-stdout');           origConsole.log(...args);   };
+  console.warn  = (...args) => { appendOutput('⚠ ' + args.map(stringify).join(' ') + '\n', 'out-warning');  origConsole.warn(...args);  };
+  console.error = (...args) => { appendOutput('✖ ' + args.map(stringify).join(' ') + '\n', 'out-stderr');   origConsole.error(...args); };
+  console.info  = (...args) => { appendOutput('ℹ ' + args.map(stringify).join(' ') + '\n', 'out-info');     origConsole.info(...args);  };
+  console.table = (data)    => { appendOutput(tableToString(data) + '\n', 'out-stdout');                     origConsole.table(data);    };
 
   /**
    * 疑似 readline 関数。
@@ -958,7 +1077,7 @@ function runCode() {
   /** console.table の簡易テキスト変換 */
   function tableToString(data) {
     if (!Array.isArray(data) || data.length === 0) return String(data);
-    const keys = Object.keys(data[0]);
+    const keys   = Object.keys(data[0]);
     const header = keys.join(' | ');
     const sep    = keys.map(k => '-'.repeat(k.length)).join('-+-');
     const rows   = data.map(row => keys.map(k => String(row[k] ?? '')).join(' | '));
@@ -972,7 +1091,7 @@ function runCode() {
 
   let execPromise;
   try {
-    // readline と console をスコープに注入
+    // readline をスコープに注入してコードを実行
     const fn = new AsyncFunction('readline', code);
     execPromise = fn(readline);
   } catch (err) {
@@ -995,7 +1114,7 @@ function runCode() {
       finishRun(false);
     })
     .finally(() => {
-      // console を元に戻す
+      // console を必ず元に戻す
       Object.assign(console, origConsole);
     });
 }
@@ -1049,7 +1168,7 @@ function appendOutput(text, cls = 'out-stdout') {
  * stdinResolvers に待機中の Promise があれば即座に解決する。
  */
 function sendStdin() {
-  const text = stdinInput.value.trim();
+  const text       = stdinInput.value.trim();
   stdinInput.value = '';
   appendOutput(`> ${text}\n`, 'out-info');
 
