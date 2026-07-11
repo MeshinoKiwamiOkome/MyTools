@@ -88,23 +88,18 @@ html, body {
   flex-direction: column;
 }
 
-/* CodeMirror のラッパー */
-#editor-wrap {
+/* CodeMirror 5 のスタイル上書き */
+.CodeMirror {
   flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* CodeMirror 本体のスタイル上書き */
-.cm-editor {
-  flex: 1;
-  height: 100%;
+  height: 100% !important;
   font-family: 'Fira Code', 'Courier New', monospace !important;
-  font-size: 13px;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  background: var(--bg) !important;
 }
-.cm-editor.cm-focused { outline: none; }
-.cm-scroller          { overflow: auto; }
+.CodeMirror-scroll {
+  height: 100%;
+}
 
 /* リサイズハンドル */
 #resizer {
@@ -173,9 +168,9 @@ html, body {
   border: 1px solid var(--border); border-radius: 4px;
   padding: 3px 8px; font-family: monospace; font-size: 12px; outline: none;
 }
-#stdin-input:focus       { border-color: var(--blue); }
-#stdin-bar button        { background: var(--border); color: var(--fg); border: none; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
-#stdin-bar button:hover  { filter: brightness(1.4); }
+#stdin-input:focus      { border-color: var(--blue); }
+#stdin-bar button       { background: var(--border); color: var(--fg); border: none; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+#stdin-bar button:hover { filter: brightness(1.4); }
 
 /* ステータスバー */
 #statusbar {
