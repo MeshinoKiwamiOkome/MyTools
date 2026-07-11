@@ -8,41 +8,32 @@
 </head>
 <body>
 
-  <!-- ========== ツールバー ========== -->
   <div id="toolbar">
     <span class="toolbar-title">⚡ JS Editor</span>
-
     <div class="toolbar-group">
-      <button onclick="newFile()"       title="新規作成 (Ctrl+N)">📄 新規</button>
-      <button onclick="openFile()"      title="開く (Ctrl+O)">📂 開く</button>
-      <button onclick="saveFile()"      title="保存 (Ctrl+S)">💾 保存</button>
+      <button onclick="newFile()"       title="新規作成 Ctrl+N">📄 新規</button>
+      <button onclick="openFile()"      title="開く Ctrl+O">📂 開く</button>
+      <button onclick="saveFile()"      title="保存 Ctrl+S">💾 保存</button>
     </div>
-
     <div class="toolbar-sep"></div>
-
     <div class="toolbar-group">
-      <button onclick="openSearch()"    title="検索 (Ctrl+F)">🔍 検索</button>
-      <button onclick="toggleComment()" title="コメント (Ctrl+/)">💬 コメント</button>
-      <button onclick="autoIndent()"    title="整形 (Ctrl+I)">✨ 整形</button>
+      <button onclick="openSearch()"    title="検索 Ctrl+F">🔍 検索</button>
+      <button onclick="toggleComment()" title="コメント Ctrl+/">💬 コメント</button>
+      <button onclick="autoIndent()"    title="整形 Ctrl+I">✨ 整形</button>
     </div>
-
     <div class="toolbar-sep"></div>
-
     <div class="toolbar-group">
-      <button onclick="runCode()"     id="btn-run"  title="実行 (F5)">▶ 実行</button>
-      <button onclick="stopCode()"    id="btn-stop" title="停止 (F6)">■ 停止</button>
-      <button onclick="clearOutput()" title="クリア (F7)">🗑 クリア</button>
+      <button onclick="runCode()"     id="btn-run"  title="実行 F5">▶ 実行</button>
+      <button onclick="stopCode()"    id="btn-stop" title="停止 F6">■ 停止</button>
+      <button onclick="clearOutput()" title="クリア F7">🗑 クリア</button>
     </div>
-
     <div class="toolbar-sep"></div>
-
     <div class="toolbar-group">
-      <button onclick="changeFontSize(1)"  title="文字拡大 (Ctrl++)">A+</button>
-      <button onclick="changeFontSize(-1)" title="文字縮小 (Ctrl+-)">A-</button>
+      <button onclick="changeFontSize(1)"  title="文字拡大 Ctrl++">A+</button>
+      <button onclick="changeFontSize(-1)" title="文字縮小 Ctrl+-">A-</button>
     </div>
   </div>
 
-  <!-- ========== 検索バー ========== -->
   <div id="search-bar" class="hidden">
     <input id="search-input" type="text" placeholder="検索..." />
     <button onclick="findNext()">次へ</button>
@@ -51,33 +42,20 @@
     <button onclick="closeSearch()" class="close-btn">✕</button>
   </div>
 
-  <!-- ========== メインエリア ========== -->
   <div id="main">
-
-    <!-- エディタペイン -->
     <div id="editor-pane">
       <div id="editor-wrap">
-
-        <!-- 行番号 -->
         <div id="line-numbers"></div>
-
-        <!-- ハイライト表示レイヤー（textarea の真後ろに重ねる） -->
-        <div id="highlight-layer" aria-hidden="true"></div>
-
-        <!-- エディタ本体（textarea） -->
         <textarea id="editor"
                   spellcheck="false"
                   autocorrect="off"
                   autocapitalize="off"
                   autocomplete="off"></textarea>
-
       </div>
     </div>
 
-    <!-- リサイズハンドル -->
     <div id="resizer"></div>
 
-    <!-- 出力パネル -->
     <div id="output-pane">
       <div id="output-header">
         <span>▼ 出力 / コンソール</span>
@@ -92,10 +70,8 @@
         <button onclick="sendStdin()">送信</button>
       </div>
     </div>
-
   </div>
 
-  <!-- ========== ステータスバー ========== -->
   <div id="statusbar">
     <span id="status-left">JavaScript | UTF-8</span>
     <span id="status-msg">準備完了</span>
