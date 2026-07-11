@@ -41,20 +41,15 @@ html, body {
 }
 .toolbar-group { display: flex; gap: 2px; }
 .toolbar-sep   { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-
 #toolbar button {
-  background: var(--border);
-  color: var(--fg);
-  border: none;
-  border-radius: 4px;
-  padding: 3px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
+  background: var(--border); color: var(--fg);
+  border: none; border-radius: 4px;
+  padding: 3px 10px; font-size: 12px;
+  cursor: pointer; white-space: nowrap;
 }
 #toolbar button:hover { filter: brightness(1.4); }
-#btn-run              { background: #40a02b !important; }
-#btn-stop             { background: #d20f39 !important; }
+#btn-run  { background: #40a02b !important; }
+#btn-stop { background: #d20f39 !important; }
 
 /* 検索バー */
 #search-bar {
@@ -67,20 +62,15 @@ html, body {
 }
 #search-bar.hidden { display: none; }
 #search-input {
-  background: var(--bg2);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-size: 13px;
-  width: 220px;
-  outline: none;
+  background: var(--bg2); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 3px 8px; font-size: 13px; width: 220px; outline: none;
 }
-#search-input:focus    { border-color: var(--blue); }
-#search-bar button     { background: var(--border); color: var(--fg); border: none; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+#search-input:focus      { border-color: var(--blue); }
+#search-bar button       { background: var(--border); color: var(--fg); border: none; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
 #search-bar button:hover { filter: brightness(1.4); }
-#search-bar .close-btn { background: transparent; font-size: 14px; }
-#search-count          { font-size: 12px; color: var(--fgdim); }
+#search-bar .close-btn   { background: transparent; font-size: 14px; }
+#search-count            { font-size: 12px; color: var(--fgdim); }
 
 /* メインエリア */
 #main {
@@ -93,57 +83,28 @@ html, body {
 #editor-pane {
   flex: 1 1 60%;
   min-height: 80px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
+/* CodeMirror のラッパー */
 #editor-wrap {
+  flex: 1;
+  overflow: hidden;
   display: flex;
-  flex: 1;
-  overflow: hidden;
+  flex-direction: column;
 }
 
-/* 行番号 */
-#line-numbers {
-  min-width: 48px;
-  padding: 10px 8px 10px 0;
-  background: var(--bg2);
-  color: var(--fgdim);
-  font-family: 'Fira Code', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  text-align: right;
-  user-select: none;
-  white-space: pre;
-  border-right: 1px solid var(--border);
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-/* textarea 本体
-   文字は普通に見える。背景だけダークにする。
-   ハイライトは諦めて操作感を優先。 */
-#editor {
+/* CodeMirror 本体のスタイル上書き */
+.cm-editor {
   flex: 1;
-  padding: 10px 12px;
-  font-family: 'Fira Code', 'Courier New', monospace;
+  height: 100%;
+  font-family: 'Fira Code', 'Courier New', monospace !important;
   font-size: 13px;
-  line-height: 1.6;
-  color: var(--fg);           /* 普通に文字が見える */
-  background: var(--bg);
-  caret-color: #f5c2e7;
-  border: none;
-  outline: none;
-  resize: none;
-  white-space: pre;
-  tab-size: 4;
-  overflow: auto;
-  -webkit-appearance: none;
 }
-#editor::selection {
-  background: rgba(137, 180, 250, 0.4);
-}
+.cm-editor.cm-focused { outline: none; }
+.cm-scroller          { overflow: auto; }
 
 /* リサイズハンドル */
 #resizer {
@@ -212,9 +173,9 @@ html, body {
   border: 1px solid var(--border); border-radius: 4px;
   padding: 3px 8px; font-family: monospace; font-size: 12px; outline: none;
 }
-#stdin-input:focus { border-color: var(--blue); }
-#stdin-bar button  { background: var(--border); color: var(--fg); border: none; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
-#stdin-bar button:hover { filter: brightness(1.4); }
+#stdin-input:focus       { border-color: var(--blue); }
+#stdin-bar button        { background: var(--border); color: var(--fg); border: none; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+#stdin-bar button:hover  { filter: brightness(1.4); }
 
 /* ステータスバー */
 #statusbar {
