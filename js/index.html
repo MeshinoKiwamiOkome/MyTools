@@ -57,11 +57,20 @@
     <!-- エディタペイン -->
     <div id="editor-pane">
       <div id="editor-wrap">
+
         <!-- 行番号 -->
         <div id="line-numbers"></div>
-        <!-- エディタ本体: textarea を使用（contenteditable より確実） -->
-        <textarea id="editor" spellcheck="false" autocorrect="off"
-                  autocapitalize="off" autocomplete="off"></textarea>
+
+        <!-- ハイライト表示レイヤー（textarea の真後ろに重ねる） -->
+        <div id="highlight-layer" aria-hidden="true"></div>
+
+        <!-- エディタ本体（textarea） -->
+        <textarea id="editor"
+                  spellcheck="false"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  autocomplete="off"></textarea>
+
       </div>
     </div>
 
@@ -75,7 +84,6 @@
         <span id="run-status" class="status-idle">● 待機中</span>
       </div>
       <div id="output"></div>
-      <!-- stdin 入力欄 -->
       <div id="stdin-bar">
         <span class="stdin-label">stdin &gt;</span>
         <input id="stdin-input" type="text"
@@ -94,7 +102,6 @@
     <span id="status-pos">行: 1  列: 1</span>
   </div>
 
-  <!-- ファイル読み込み用の隠し input -->
   <input type="file" id="file-input" accept=".js,.mjs,.cjs,.txt"
          style="display:none" onchange="onFileSelected(event)" />
 
