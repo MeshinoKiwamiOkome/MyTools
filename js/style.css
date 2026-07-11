@@ -12,15 +12,6 @@
   --border:    #45475a;
   --select:    #313244;
   --cursor:    #f5c2e7;
-  --keyword:   #cba6f7;
-  --builtin:   #89dceb;
-  --func:      #89b4fa;
-  --string:    #a6e3a1;
-  --comment:   #6c7086;
-  --number:    #fab387;
-  --operator:  #89dceb;
-  --error-bg:  #3d1a1a;
-  --error-fg:  #f38ba8;
   --green:     #a6e3a1;
   --yellow:    #f9e2af;
   --blue:      #89b4fa;
@@ -57,10 +48,7 @@ html, body {
   white-space: nowrap;
 }
 
-.toolbar-group {
-  display: flex;
-  gap: 2px;
-}
+.toolbar-group { display: flex; gap: 2px; }
 
 .toolbar-sep {
   width: 1px;
@@ -80,11 +68,11 @@ html, body {
   white-space: nowrap;
   transition: background 0.15s;
 }
-#toolbar button:hover        { background: var(--select); filter: brightness(1.3); }
-#btn-run                     { background: #40a02b !important; }
-#btn-run:hover               { background: #2d7a1f !important; }
-#btn-stop                    { background: #d20f39 !important; }
-#btn-stop:hover              { background: #a00a2a !important; }
+#toolbar button:hover { filter: brightness(1.3); }
+#btn-run              { background: #40a02b !important; }
+#btn-run:hover        { background: #2d7a1f !important; }
+#btn-stop             { background: #d20f39 !important; }
+#btn-stop:hover       { background: #a00a2a !important; }
 
 /* ============================================================
    検索バー
@@ -109,9 +97,8 @@ html, body {
   width: 220px;
   outline: none;
 }
-#search-input:focus { border-color: var(--blue); }
-
-#search-bar button {
+#search-input:focus  { border-color: var(--blue); }
+#search-bar button   {
   background: var(--border);
   color: var(--fg);
   border: none;
@@ -125,13 +112,14 @@ html, body {
 #search-count            { font-size: 12px; color: var(--fg-dim); }
 
 /* ============================================================
-   メインエリア（エディタ + 出力パネル）
-   上下分割・ドラッグでリサイズ可能
+   メインエリア
    ============================================================ */
 #main {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 36px - 24px); /* ツールバー・ステータスバー分を引く */
+  /* ツールバー(36px) + ステータスバー(24px) 分を引く
+     検索バーが開いているときは JS で動的に調整しない（スクロールで対応） */
+  height: calc(100vh - 36px - 24px);
   overflow: hidden;
 }
 
@@ -147,17 +135,17 @@ html, body {
 #editor-wrap {
   display: flex;
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   background: var(--bg);
 }
 
 /* 行番号 */
 #line-numbers {
   min-width: 48px;
-  padding: 8px 6px;
+  padding: 10px 6px 10px 0;
   background: var(--bg2);
   color: var(--fg-dim);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
   text-align: right;
@@ -165,38 +153,29 @@ html, body {
   white-space: pre;
   border-right: 1px solid var(--border);
   flex-shrink: 0;
+  /* textarea のスクロールと同期するため overflow を hidden に */
+  overflow: hidden;
 }
 
-/* エディタ本体 */
+/* エディタ本体（textarea） */
 #editor {
   flex: 1;
-  padding: 8px 12px;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  padding: 10px 12px;
+  font-family: 'Fira Code', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
   color: var(--fg);
   background: var(--bg);
+  border: none;
   outline: none;
+  resize: none;          /* ドラッグリサイズを無効化 */
   white-space: pre;
   tab-size: 4;
   caret-color: var(--cursor);
-  min-height: 100%;
+  overflow: auto;
+  /* textarea のデフォルトスタイルをリセット */
+  -webkit-appearance: none;
 }
-
-/* シンタックスハイライト用スパン */
-.hl-keyword  { color: var(--keyword);  }
-.hl-builtin  { color: var(--builtin);  }
-.hl-function { color: var(--func);     }
-.hl-string   { color: var(--string);   }
-.hl-comment  { color: var(--comment);  font-style: italic; }
-.hl-number   { color: var(--number);   }
-.hl-operator { color: var(--operator); }
-
-/* 現在行ハイライト */
-.current-line { background: #2a2a3e; display: block; }
-
-/* エラー行ハイライト */
-.error-line { background: var(--error-bg); color: var(--error-fg); display: block; }
 
 /* ---- リサイズハンドル ---- */
 #resizer {
@@ -230,26 +209,23 @@ html, body {
   flex-shrink: 0;
 }
 
-/* 実行ステータス */
 .status-idle    { color: var(--fg-dim); }
 .status-running { color: var(--green);  }
 .status-done    { color: var(--green);  }
 .status-error   { color: var(--red);    }
 .status-stopped { color: var(--yellow); }
 
-/* 出力テキスト */
 #output {
   flex: 1;
   overflow-y: auto;
   padding: 8px 12px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Courier New', monospace;
   font-size: 12px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
-/* 出力テキストの色分け */
 .out-stdout  { color: var(--fg);     }
 .out-stderr  { color: var(--red);    }
 .out-info    { color: var(--blue);   }
@@ -306,41 +282,13 @@ html, body {
   font-size: 11px;
   color: var(--fg-dim);
   border-top: 1px solid var(--border);
-  flex-shrink: 0;
 }
 #status-msg { color: var(--green); }
 
 /* ============================================================
-   自動補完ポップアップ
+   スクロールバー
    ============================================================ */
-#autocomplete {
-  position: fixed;
-  background: var(--select);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  z-index: 9999;
-  max-height: 200px;
-  overflow-y: auto;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-  min-width: 160px;
-}
-#autocomplete.hidden { display: none; }
-
-.ac-item {
-  padding: 4px 12px;
-  cursor: pointer;
-  color: var(--fg);
-  white-space: nowrap;
-}
-.ac-item:hover,
-.ac-item.selected { background: var(--blue); color: var(--bg); }
-
-/* ============================================================
-   スクロールバーのカスタマイズ
-   ============================================================ */
-::-webkit-scrollbar              { width: 8px; height: 8px; }
-::-webkit-scrollbar-track        { background: var(--bg2); }
-::-webkit-scrollbar-thumb        { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover  { background: var(--fg-dim); }
+::-webkit-scrollbar             { width: 8px; height: 8px; }
+::-webkit-scrollbar-track       { background: var(--bg2); }
+::-webkit-scrollbar-thumb       { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-dim); }
