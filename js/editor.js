@@ -1,25 +1,10 @@
 // ============================================================
 // editor.js
-// CodeMirror 6 を使ったシンプルな JS エディタ
-// CDN から読み込むため Node.js / npm 不要
+// CodeMirror 5 (CDN) を使ったシンプルな JS エディタ
+// importmap 不要・通常の script タグで動作
 // ============================================================
 
-import { EditorState }        from '@codemirror/state';
-import { EditorView, keymap, lineNumbers, highlightActiveLine }
-                               from '@codemirror/view';
-import { defaultKeymap, indentWithTab, history, historyKeymap,
-         toggleComment as cmToggleComment,
-         indentMore, indentLess }
-                               from '@codemirror/commands';
-import { javascript }          from '@codemirror/lang-javascript';
-import { oneDark }             from '@codemirror/theme-one-dark';
-import { bracketMatching, indentOnInput, foldGutter }
-                               from '@codemirror/language';
-import { closeBrackets, closeBracketsKeymap }
-                               from '@codemirror/autocomplete';
-import { searchKeymap, search, SearchQuery,
-         findNext as cmFindNext, findPrevious as cmFindPrev,
-         setSearchQuery }      from '@codemirror/search';
+'use strict';
 
 // ============================================================
 // 状態管理
@@ -78,110 +63,62 @@ fetchExample();
 `;
 
 // ============================================================
-// CodeMirror エディタの初期化
+// CodeMirror 5 の初期化
 // ============================================================
-let cmView; // CodeMirror の EditorView インスタンス
+let cm; // CodeMirror インスタンス
 
-function initEditor() {
-  // カーソル移動時にステータスバーを更新するリスナー
-  const updateListener = EditorView.updateListener.of((update) => {
-    if (update.docChanged) {
-      state.isModified = true;
-      updateTitle();
-    }
-    // カーソル位置を更新
-    const pos   = update.state.selection.main.head;
-    const line  = update.state.doc.lineAt(pos);
-    const col   = pos - line.from + 1;
-    statusPos.textContent = '行: ' + line.number + '  列: ' + col;
+window.addEventListener('DOMContentLoaded', () => {
+  // textarea を CodeMirror に置き換える
+  cm = CodeMirror.fromTextArea(document.getElementById('editor'), {
+    mode:              'javascript',   // JavaScript モード
+    theme:             'dracula',      // ダークテーマ
+    lineNumbers:       true,           // 行番号
+    matchBrackets:     true,           // 括弧の対応ハイライト
+    autoCloseBrackets: true,           // 括弧の自動補完
+    styleActiveLine:   true,           // 現在行ハイライト
+    indentUnit:        4,              // インデント幅
+    tabSize:           4,
+    indentWithTabs:    false,          // タブではなくスペース
+    lineWrapping:      false,          // 折り返しなし
+    extraKeys: {
+      // Tab でスペース4つ挿入
+      'Tab': (cm) => cm.execCommand('insertSoftTab'),
+    },
   });
 
-  // エディタの初期設定
-  const startState = EditorState.create({
-    doc: SAMPLE_CODE,
-    extensions: [
-      // 行番号表示
-      lineNumbers(),
-      // 現在行ハイライト
-      highlightActiveLine(),
-      // Undo/Redo 履歴
-      history(),
-      // JavaScript シンタックスハイライト
-      javascript(),
-      // ダークテーマ（One Dark）
-      oneDark,
-      // 括弧の対応ハイライト
-      bracketMatching(),
-      // 括弧の自動補完（入力したら閉じ括弧を追加）
-      closeBrackets(),
-      // Enter 時の自動インデント
-      indentOnInput(),
-      // 折りたたみ
-      foldGutter(),
-      // キーマップ
-      keymap.of([
-        // Tab でインデント
-        indentWithTab,
-        // 括弧補完のキーマップ
-        ...closeBracketsKeymap,
-        // デフォルトキーマップ（Ctrl+Z 等）
-        ...defaultKeymap,
-        // Undo/Redo
-        ...historyKeymap,
-        // 検索
-        ...searchKeymap,
-      ]),
-      // 変更リスナー
-      updateListener,
-      // 折り返しなし（横スクロール）
-      EditorView.lineWrapping,
-    ],
+  // サンプルコードをセット
+  cm.setValue(SAMPLE_CODE);
+
+  // カーソル移動時にステータスバーを更新
+  cm.on('cursorActivity', updateStatusPos);
+
+  // 変更時に未保存フラグを立てる
+  cm.on('change', () => {
+    state.isModified = true;
+    updateTitle();
   });
 
-  cmView = new EditorView({
-    state:  startState,
-    parent: document.getElementById('editor-wrap'),
-  });
-}
+  // エディタの高さを親要素に合わせる
+  cm.setSize('100%', '100%');
+
+  bindEvents();
+  initResizer();
+  updateStatusPos();
+  setStatusMsg('準備完了');
+});
 
 // ============================================================
 // コードの取得・セット
 // ============================================================
-
-/** エディタのコード全文を返す */
-function getCode() {
-  return cmView.state.doc.toString();
-}
-
-/** エディタにコードをセットする */
-function setCode(code) {
-  cmView.dispatch({
-    changes: {
-      from:    0,
-      to:      cmView.state.doc.length,
-      insert:  code,
-    },
-  });
-}
-
-// ============================================================
-// 初期化
-// ============================================================
-window.addEventListener('DOMContentLoaded', () => {
-  initEditor();
-  bindEvents();
-  initResizer();
-  setStatusMsg('準備完了');
-});
+function getCode()       { return cm.getValue(); }
+function setCode(code)   { cm.setValue(code); }
 
 // ============================================================
 // イベントバインド
 // ============================================================
 function bindEvents() {
-  // グローバルショートカット
   document.addEventListener('keydown', onGlobalKeydown);
 
-  // 検索入力
   searchInput.addEventListener('input', doSearch);
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter')  { e.shiftKey ? findPrev() : findNext(); e.preventDefault(); }
@@ -208,7 +145,7 @@ function onGlobalKeydown(e) {
 }
 
 // ============================================================
-// 検索（独自UI + CodeMirror の選択範囲移動）
+// 検索
 // ============================================================
 function openSearch() {
   searchBar.classList.remove('hidden');
@@ -221,7 +158,7 @@ function closeSearch() {
   state.searchResults     = [];
   state.searchIndex       = -1;
   searchCount.textContent = '';
-  cmView.focus();
+  cm.focus();
 }
 
 function doSearch() {
@@ -257,14 +194,15 @@ function findPrev() {
 }
 
 function jumpToResult() {
-  const from = state.searchResults[state.searchIndex];
-  const to   = from + searchInput.value.length;
-  // CodeMirror の選択範囲を検索結果に移動
-  cmView.dispatch({
-    selection: { anchor: from, head: to },
-    scrollIntoView: true,
-  });
-  cmView.focus();
+  const from  = state.searchResults[state.searchIndex];
+  const to    = from + searchInput.value.length;
+  const code  = getCode();
+  // 文字オフセットを CodeMirror の {line, ch} 形式に変換
+  const fromPos = cm.posFromIndex(from);
+  const toPos   = cm.posFromIndex(to);
+  cm.setSelection(fromPos, toPos);
+  cm.scrollIntoView({ from: fromPos, to: toPos }, 100);
+  cm.focus();
 }
 
 function escapeRegex(s) {
@@ -273,15 +211,15 @@ function escapeRegex(s) {
 
 // ============================================================
 // コメントアウト / 解除
-// CodeMirror のコマンドを使用
+// CodeMirror 5 の comment アドオンを使用
 // ============================================================
 function toggleComment() {
-  cmToggleComment(cmView);
-  cmView.focus();
+  cm.execCommand('toggleComment');
+  cm.focus();
 }
 
 // ============================================================
-// インデント整形（独自実装）
+// インデント整形
 // ============================================================
 function autoIndent() {
   const lines  = getCode().split('\n');
@@ -357,14 +295,21 @@ function saveAsFile() {
 // ============================================================
 function changeFontSize(delta) {
   state.fontSize = Math.min(32, Math.max(8, state.fontSize + delta));
-  // CodeMirror のフォントサイズを CSS で変更
-  document.querySelector('.cm-editor').style.fontSize = state.fontSize + 'px';
+  // CodeMirror のラッパー要素にフォントサイズを適用
+  document.querySelector('.CodeMirror').style.fontSize = state.fontSize + 'px';
   outputEl.style.fontSize = state.fontSize + 'px';
+  // リフレッシュして表示を更新
+  cm.refresh();
 }
 
 // ============================================================
 // ステータスバー・タイトル更新
 // ============================================================
+function updateStatusPos() {
+  const cursor = cm.getCursor();
+  statusPos.textContent = '行: ' + (cursor.line + 1) + '  列: ' + (cursor.ch + 1);
+}
+
 let statusTimer = null;
 function setStatusMsg(msg) {
   statusMsg.textContent = msg;
@@ -404,6 +349,8 @@ function initResizer() {
     const dy = e.clientY - startY;
     editorPane.style.flex = '0 0 ' + Math.max(80, startEH + dy) + 'px';
     outputPane.style.flex = '0 0 ' + Math.max(80, startOH - dy) + 'px';
+    // リサイズ後に CodeMirror の表示を更新
+    cm.refresh();
   }
   function onUp() {
     document.removeEventListener('mousemove', onMove);
